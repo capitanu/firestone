@@ -3,8 +3,8 @@
             [ysera.error :refer [error]]))
 
 
-; Here is where the definitions are stored
-; It is a reference to an immutable map of definitions that are loaded at runtime
+;; Here is where the definitions are stored
+;; It is a reference to an immutable map of definitions that are loaded at runtime
 (defonce definitions-atom (atom {}))
 
 
@@ -31,7 +31,7 @@
                  :class     :paladin
                  :type      :minion
                  :set       :basic})
-           ; The name can be present in a map with :name as a key
+           ;; The name can be present in a map with :name as a key
            (is= (get-definition {:name "Nightblade"})
                 (get-definition "Nightblade"))
 
@@ -48,3 +48,4 @@
     (when (nil? definition)
       (error (str "The name " name-or-entity " does not exist. Are the definitions loaded?")))
     definition))
+

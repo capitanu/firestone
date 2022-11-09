@@ -14,14 +14,14 @@
                 {:name         "Jaina Proudmoore"
                  :entity-type  :hero
                  :damage-taken 10}))}
-  ; Variadic functions [https://clojure.org/guides/learn/functions#_variadic_functions]
+  ;; Variadic functions [https://clojure.org/guides/learn/functions#_variadic_functions]
   [name & kvs]
   (let [hero {:name         name
               :entity-type  :hero
               :damage-taken 0}]
     (if (empty? kvs)
       hero
-      ; use apply when the arguments are in a sequence
+      ;; use apply when the arguments are in a sequence
       (apply assoc hero kvs))))
 
 
@@ -52,7 +52,7 @@
                  :name                        "Nightblade"
                  :id                          "n"}))}
   [name & kvs]
-  (let [definition (get-definition name)                    ; Will be used later
+  (let [definition (get-definition name)                    ;; Will be used later
         minion {:damage-taken                0
                 :entity-type                 :minion
                 :name                        name
@@ -65,7 +65,7 @@
 (defn create-empty-state
   "Creates an empty state with the given heroes."
   {:test (fn []
-           ; Jaina Proudmoore will be the default hero
+           ;; Jaina Proudmoore will be the default hero
            (is= (create-empty-state [(create-hero "Jaina Proudmoore")
                                      (create-hero "Jaina Proudmoore")])
                 (create-empty-state))
@@ -91,11 +91,11 @@
                                                                  :entity-type  :hero}}}
                  :counter                       1
                  :minion-ids-summoned-this-turn []}))}
-  ; Multiple arity of a function [https://clojure.org/guides/learn/functions#_multi_arity_functions]
+  ;; Multiple arity of a function [https://clojure.org/guides/learn/functions#_multi_arity_functions]
   ([]
    (create-empty-state []))
   ([heroes]
-   ; Creates Jaina Proudmoore heroes if heroes are missing.
+   ;; Creates Jaina Proudmoore heroes if heroes are missing.
    (let [heroes (->> (concat heroes [(create-hero "Jaina Proudmoore")
                                      (create-hero "Jaina Proudmoore")])
                      (take 2))]
@@ -139,7 +139,7 @@
 (defn get-minions
   "Returns the minions on the board for the given player-id or for both players."
   {:test (fn []
-           ; Getting minions is also tested in add-minion-to-board.
+           ;; Getting minions is also tested in add-minion-to-board.
            (is= (-> (create-empty-state)
                     (get-minions "p1"))
                 [])
@@ -201,13 +201,13 @@
 (defn add-minion-to-board
   "Adds a minion with a given position to a player's minions and updates the other minions' positions."
   {:test (fn []
-           ; Adding a minion to an empty board
+           ;; Adding a minion to an empty board
            (is= (as-> (create-empty-state) $
                       (add-minion-to-board $ "p1" (create-minion "Injured Blademaster" :id "ib") 0)
                       (get-minions $ "p1")
                       (map (fn [m] {:id (:id m) :name (:name m)}) $))
                 [{:id "ib" :name "Injured Blademaster"}])
-           ; Adding a minion and update positions
+           ;; Adding a minion and update positions
            (let [minions (-> (create-empty-state)
                              (add-minion-to-board "p1" (create-minion "Injured Blademaster" :id "ib1") 0)
                              (add-minion-to-board "p1" (create-minion "Injured Blademaster" :id "ib2") 0)
@@ -215,7 +215,7 @@
                              (get-minions "p1"))]
              (is= (map :id minions) ["ib1" "ib2" "ib3"])
              (is= (map :position minions) [2 0 1]))
-           ; Generating an id for the new minion
+           ;; Generating an id for the new minion
            (let [state (-> (create-empty-state)
                            (add-minion-to-board "p1" (create-minion "Injured Blademaster") 0))]
              (is= (-> (get-minions state "p1")
@@ -269,14 +269,14 @@
 (defn- add-card-to
   "Adds a card to either the hand or the deck."
   {:test (fn []
-           ; Adding cards to deck
+           ;; Adding cards to deck
            (is= (as-> (create-empty-state) $
                       (add-card-to $ "p1" "Nightblade" :deck)
                       (add-card-to $ "p1" "Silver Hand Recruit" :deck)
                       (get-deck $ "p1")
                       (map :name $))
                 ["Nightblade" "Silver Hand Recruit"])
-           ; Adding cards to hand
+           ;; Adding cards to hand
            (is= (as-> (create-empty-state) $
                       (add-card-to $ "p1" "Nightblade" :hand)
                       (add-card-to $ "p1" "Silver Hand Recruit" :hand)
@@ -357,7 +357,7 @@
            (is= (create-game [{:minions [(create-minion "Nightblade")]}])
                 (create-game [{:minions ["Nightblade"]}]))
 
-           ; This test is showing the state structure - otherwise avoid large assertions
+           ;; This test is showing the state structure - otherwise avoid large assertions
            (is= (create-game [{:minions ["Nightblade"]
                                :deck    ["Novice Engineer"]
                                :hand    ["Snake"]}
@@ -460,6 +460,29 @@
   (->> (get-players state)
        (map :hero)))
 
+(defn get-hero-by-player-id
+  "Gets the hero associated with the given player"
+  {:test (fn []
+           (is= (-> (create-game [{:hero "Rexxar"}])
+                    (get-hero-by-player-id "p1")
+                    (:name))
+                "Rexxar"))}
+  [state id]
+  (get-in state [:players id :hero])
+
+  )
+
+(defn get-hero
+  "Get the hero map from the id"
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Rexxar" :id "h1")}])
+                    (get-hero "h1")
+                    (:name))
+                "Rexxar"))}
+  [state id]
+  (->> (get-heroes state)
+       (filter (fn [h] (= (:id h) id)))
+       (first)))
 
 (defn replace-minion
   "Replaces a minion with the same id by the given new-minion."
@@ -502,6 +525,37 @@
                             (update minion key function-or-value)
                             (assoc minion key function-or-value)))))
 
+(defn replace-hero
+  "Replaces a hero with the same id by the given new hero"
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :id "h1" :damage-taken 0)}])
+                    (replace-hero (create-hero "Jaina Proudmoore" :id "h1" :damage-taken 1))
+                    (get-hero "h1")
+                    (:damage-taken))
+                1))}
+  [state new-hero]
+  (let [player-id (or (if (= (:id (get-hero-by-player-id state "p1"))
+                             (:id new-hero))
+                        "p1")
+                      (if (= (:id (get-hero-by-player-id state "p2"))
+                             (:id new-hero))
+                        "p2"))]
+    (update-in state [:players player-id :hero] (constantly new-hero))))
+
+(defn update-hero
+  "Updates the value of the given key for the hero with the given id. If function-or-value is a value it will be the
+   new value, else if it is a function it will be applied on the existing value to produce the new value."
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :id "h1")}])
+                    (update-hero "h1" :damage-taken inc)
+                    (get-hero "h1")
+                    (:damage-taken))
+                1))}
+  [state id key function-or-value]
+  (let [hero (get-hero state id)]
+    (replace-hero state (if (fn? function-or-value)
+                          (update hero key function-or-value)
+                          (assoc hero key function-or-value)))))
 
 (defn remove-minion
   "Removes a minion with the given id from the state."
