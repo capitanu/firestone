@@ -3,13 +3,17 @@
             [ysera.error :refer [error]]
             [ysera.collections :refer [seq-contains?]]
             [firestone.definitions :refer [get-definition]]
-            [firestone.construct :refer [create-card
+            [firestone.construct :refer [add-cards-to-deck
+                                         create-card
                                          create-game
                                          create-hero
                                          create-minion
+                                         get-hand
                                          get-heroes
                                          get-minion
-                                         get-minions]]))
+                                         get-minions
+                                         get-player
+                                         update-minion]]))
 
 
 (defn get-character
@@ -138,4 +142,139 @@
          (= (:player-id-in-turn state) player-id)
          (< (:attacks-performed-this-turn attacker) 1)
          (not (sleepy? state attacker-id))
+         (not= (:owner-id target) (:player-id-in-turn state))
          (not= (:owner-id attacker) (:owner-id target)))))
+
+(defn take-fatigue?
+  "Returns truethy or falsey, depending on whether or not the player should get fatigue"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (take-fatigue? "p1"))
+                true)
+           (is= (-> (create-game)
+                    (add-cards-to-deck "p1" ["Nightblade"])
+                    (take-fatigue? "p1"))
+                nil))}
+  [state player-id]
+  (if (= (get-in state [:players player-id :deck]) [])
+    true
+    nil))
+
+(defn draw-card
+  ;; TODO: Check if hand is full and destroy card if so
+  "Picks up the first card in the deck and puts it in the hand"
+  {:test (fn []
+           (is= (as-> (create-game [{:deck ["Boulderfist Ogre"]}]) $
+                    (draw-card $ "p1")
+                    (get-hand $ "p1")
+                    (map :name $))
+                ["Boulderfist Ogre"])
+           (is= (as-> (create-game [{:deck ["Silver Hand Recruit"] :hand ["Boulderfist Ogre", "Boulderfist Ogre", "Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre"]}]) $
+                    (draw-card $ "p1")
+                    (get-hand $ "p1")
+                    (count $))
+                10)
+           (is= (as-> (create-game [{:deck ["Boulderfist Ogre", "Silver Hand Recruit"]}]) $
+                  (draw-card $ "p1")
+                  (draw-card $ "p1")
+                  (get-hand $ "p1")
+                  (map :name $))
+                ["Silver Hand Recruit", "Boulderfist Ogre"])
+           (error? (-> (create-game)
+                    (draw-card "p1"))))}
+  
+  [state player-id]
+  (if (= (get-in state [:players player-id :deck])
+         [])
+    (error "Player deck is empty"))
+  (if (< (-> (count (get-in state [:players player-id :hand])))
+           10)
+    (let [card (peek (get-in state [:players player-id :deck]))]
+      (-> (update-in state [:players player-id :deck] pop)
+          (update-in [:players player-id :hand] conj card)))
+    (let [card (peek (get-in state [:players player-id :deck]))]
+      (update-in state [:players player-id :deck] pop))))
+
+(defn reset-minions-attack
+  "Resets all current player minion attacked to 0"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr" :attacks-performed-this-turn 1)]}
+                                  {:hero (create-hero "Jaina Proudmoore" :id "jp")}])
+                    (reset-minions-attack "p1")
+                    (get-minion "shr")
+                    :attacks-performed-this-turn)
+                0))}
+  [state player-id]
+  (as-> (get-in state [:players player-id :minions]) $
+    (mapv (fn [x] (update x :attacks-performed-this-turn (constantly 0))) $)
+    (update-in state [:players player-id :minions] (constantly $))))
+
+
+(defn remove-minion?
+  "Removes a minion from the table IF it has negative health"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Nightblade" :id "n" :damage-taken 5)]}])
+                    (remove-minion? "n"))
+                true)
+           (is= (-> (create-game [{:minions [(create-minion "Nightblade" :id "n" :damage-taken 3)]}])
+                    (remove-minion? "n"))
+                false))}
+  [state minion-id]
+  (< (get-health state minion-id)
+     0))
+
+(defn remove-minion
+  "Removes a minion from the table IF it has negative health"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo")]}])
+                    (remove-minion "bo")
+                    (get-in [:players "p1" :minions])
+                    (count))
+                0))}
+  [state minion-id]
+  (let [player-id (-> state
+                      (get-character minion-id)
+                      (:owner-id))]
+    (as-> (filter (fn [x] (not= (:id x) minion-id)) (get-in state [:players player-id :minions])) $
+         (update-in state [:players player-id :minions] (constantly $)))))
+
+
+(defn remove-sleeping-minions
+  {:test (fn [] 
+           (is= (as-> (create-game) $
+                  (update $ :minion-ids-summoned-this-turn (constantly ["bo"]))
+                  (remove-sleeping-minions $)
+                  (get $ :minion-ids-summoned-this-turn))
+                []))}
+  [state]
+  (update state :minion-ids-summoned-this-turn (constantly [])))
+
+
+(defn minion-attacked?
+  "Truthy if minion attacked, falsey otherwise"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (minion-attacked? "shr"))
+                false)
+           (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr" :attacks-performed-this-turn 1)]}])
+                    (minion-attacked? "shr"))
+                true))}
+  [state minion-id]
+  (if (= 1
+           (-> (get-character state minion-id)
+                (:attacks-performed-this-turn)))
+    true
+    false))
+
+(defn set-minion-attacked
+  "Sets the minions attack to 1"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (set-minion-attacked "shr")
+                    (minion-attacked? "shr"))
+                true)
+           (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (minion-attacked? "shr"))
+                false))}
+  [state minion-id]
+  (update-minion state minion-id :attacks-performed-this-turn 1))

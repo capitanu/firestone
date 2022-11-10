@@ -73,22 +73,28 @@
            (is= (create-empty-state [(create-hero "Jaina Proudmoore" :id "r")
                                      (create-hero "Rexxar")])
                 {:player-id-in-turn             "p1"
-                 :players                       {"p1" {:id      "p1"
-                                                       :deck    []
-                                                       :hand    []
-                                                       :minions []
-                                                       :hero    {:name         "Jaina Proudmoore"
-                                                                 :id           "r"
-                                                                 :damage-taken 0
-                                                                 :entity-type  :hero}}
-                                                 "p2" {:id      "p2"
-                                                       :deck    []
-                                                       :hand    []
-                                                       :minions []
-                                                       :hero    {:name         "Rexxar"
-                                                                 :id           "h2"
-                                                                 :damage-taken 0
-                                                                 :entity-type  :hero}}}
+                 :players                       {"p1" {:id       "p1"
+                                                       :deck     []
+                                                       :hand     []
+                                                       :minions  []
+                                                       :hero     {:name         "Jaina Proudmoore"
+                                                                  :id           "r"
+                                                                  :damage-taken 0
+                                                                  :entity-type  :hero}
+                                                       :fatigue  1
+                                                       :mana     10
+                                                       :max-mana 10}
+                                                 "p2" {:id       "p2"
+                                                       :deck     []
+                                                       :hand     []
+                                                       :minions  []
+                                                       :hero     {:name         "Rexxar"
+                                                                  :id           "h2"
+                                                                  :damage-taken 0
+                                                                  :entity-type  :hero}
+                                                       :fatigue  1
+                                                       :mana     10
+                                                       :max-mana 10}}
                  :counter                       1
                  :minion-ids-summoned-this-turn []}))}
   ;; Multiple arity of a function [https://clojure.org/guides/learn/functions#_multi_arity_functions]
@@ -108,13 +114,15 @@
                                                           :minions []
                                                           :hero    (if (contains? hero :id)
                                                                      hero
-                                                                     (assoc hero :id (str "h" (inc index))))}))
+                                                                     (assoc hero :id (str "h" (inc index))))
+                                                          :fatigue  1
+                                                          :mana     10
+                                                          :max-mana 10}))
                                           (reduce (fn [a v]
                                                     (assoc a (:id v) v))
                                                   {}))
       :counter                       1
       :minion-ids-summoned-this-turn []})))
-
 
 (defn get-player
   "Returns the player with the given id."
@@ -196,7 +204,6 @@
   [state]
   {:pre [(contains? state :counter)]}
   [(update state :counter inc) (:counter state)])
-
 
 (defn add-minion-to-board
   "Adds a minion with a given position to a player's minions and updates the other minions' positions."
@@ -321,10 +328,10 @@
 (defn add-cards-to-deck
   {:test (fn []
            (is= (as-> (create-empty-state) $
-                      (add-cards-to-deck $ "p1" ["Nightblade" "Novice Engineer"])
+                      (add-cards-to-deck $ "p1" ["Nightblade" "Silver Hand Recruit"])
                       (get-deck $ "p1")
                       (map :name $))
-                ["Nightblade" "Novice Engineer"]))}
+                ["Nightblade" "Silver Hand Recruit"]))}
   [state player-id cards]
   (reduce (fn [state card]
             (add-card-to-deck state player-id card))
@@ -335,18 +342,54 @@
 (defn add-cards-to-hand
   {:test (fn []
            (is= (as-> (create-empty-state) $
-                      (add-cards-to-hand $ "p1" ["Nightblade" "Novice Engineer"])
+                      (add-cards-to-hand $ "p1" ["Nightblade" "Silver Hand Recruit"])
                       (get-hand $ "p1")
                       (map :name $))
-                ["Nightblade" "Novice Engineer"]))}
+                ["Nightblade" "Silver Hand Recruit"]))}
   [state player-id cards]
   (reduce (fn [state card]
             (add-card-to-hand state player-id card))
           state
           cards))
 
+(defn update-player-mana
+  {:test (fn []
+           (is= (as-> (create-empty-state) $
+                  (update-player-mana $ "p1" 5)
+                  (get-player $ "p1")
+                  (:mana $))
+                5))}
+  [state player-id mana]
+  (if mana
+    (update-in state [:players player-id :mana] (constantly mana))
+    state))
+
+(defn update-player-max-mana
+  {:test (fn []
+           (is= (as-> (create-empty-state) $
+                  (update-player-max-mana $ "p1" 5)
+                  (get-player $ "p1")
+                  (:max-mana $))
+                5))}
+  [state player-id max-mana]
+  (if max-mana
+    (update-in state [:players player-id :max-mana] (constantly max-mana))
+    state))
+
+(defn update-player-fatigue
+  {:test (fn []
+           (is= (as-> (create-empty-state) $
+                  (update-player-fatigue $ "p1" 5)
+                  (get-player $ "p1")
+                  (:fatigue $))
+                5))}
+  [state player-id fatigue]
+  (if fatigue
+    (update-in state [:players player-id :fatigue] (constantly fatigue))
+    state))
 
 (defn create-game
+  
   "Creates a game with the given deck, hand, minions (placed on the board), and heroes."
   {:test (fn []
            (is= (create-game) (create-empty-state))
@@ -359,19 +402,19 @@
 
            ;; This test is showing the state structure - otherwise avoid large assertions
            (is= (create-game [{:minions ["Nightblade"]
-                               :deck    ["Novice Engineer"]
-                               :hand    ["Snake"]}
+                               :deck    ["Silver Hand Recruit"]
+                               :hand    ["Boulderfist Ogre"]}
                               {:hero "Rexxar"}]
                              :player-id-in-turn "p2")
                 {:player-id-in-turn             "p2"
                  :players                       {"p1" {:id      "p1"
                                                        :deck    [{:entity-type :card
                                                                   :id          "c3"
-                                                                  :name        "Novice Engineer"
+                                                                  :name        "Silver Hand Recruit"
                                                                   :owner-id    "p1"}]
                                                        :hand    [{:entity-type :card
                                                                   :id          "c4"
-                                                                  :name        "Snake"
+                                                                  :name        "Boulderfist Ogre"
                                                                   :owner-id    "p1"}]
                                                        :minions [{:damage-taken                0
                                                                   :attacks-performed-this-turn 0
@@ -384,15 +427,21 @@
                                                        :hero    {:name         "Jaina Proudmoore"
                                                                  :id           "h1"
                                                                  :entity-type  :hero
-                                                                 :damage-taken 0}}
-                                                 "p2" {:id      "p2"
-                                                       :deck    []
-                                                       :hand    []
-                                                       :minions []
-                                                       :hero    {:name         "Rexxar"
+                                                                 :damage-taken 0}
+                                                       :fatigue  1
+                                                       :mana     10
+                                                       :max-mana 10}
+                                                 "p2" {:id       "p2"
+                                                       :deck     []
+                                                       :hand     []
+                                                       :minions  []
+                                                       :hero     {:name         "Rexxar"
                                                                  :id           "h2"
                                                                  :entity-type  :hero
-                                                                 :damage-taken 0}}}
+                                                                  :damage-taken 0}
+                                                       :fatigue  1
+                                                       :mana     10
+                                                       :max-mana 10}}
                  :counter                       5
                  :minion-ids-summoned-this-turn []}))}
   ([data & kvs]
@@ -410,13 +459,19 @@
                                                       (:hero player-data)))
                                               data)) $
                      (reduce (fn [state {player-id :player-id
-                                         minions   :minions
-                                         deck      :deck
-                                         hand      :hand}]
+                                        minions   :minions
+                                        deck      :deck
+                                        mana      :mana
+                                        max-mana  :max-mana
+                                        fatigue   :fatigue
+                                        hand      :hand}]
                                (-> state
-                                   (add-minions-to-board player-id minions)
-                                   (add-cards-to-deck player-id deck)
-                                   (add-cards-to-hand player-id hand)))
+                                 (add-minions-to-board player-id minions)
+                                 (add-cards-to-deck player-id deck)
+                                 (update-player-mana player-id mana)
+                                 (update-player-max-mana player-id max-mana)
+                                 (update-player-fatigue player-id fatigue)
+                                 (add-cards-to-hand player-id hand)))
                              $
                              players-data))]
      (if (empty? kvs)
@@ -585,3 +640,74 @@
                 ["n2" "n3"]))}
   [state & ids]
   (reduce remove-minion state ids))
+
+(defn get-mana
+  "Gets the current mana left"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (get-mana "p1"))
+                10)
+           (is= (-> (create-game [{:mana 5}])
+                    (get-mana "p1"))
+                5))}
+  [state player-id]
+  (get-in state [:players player-id :mana]))
+
+(defn get-max-mana
+  "Gets the maximum allowed mana"
+  {:test (fn []
+           (is= (-> (create-game [{:mana 5}])
+                    (get-max-mana "p1"))
+                10)
+           (is= (-> (create-game [{:max-mana 5}])
+                    (get-max-mana "p1"))
+                5))}
+  [state player-id]
+  (get-in state [:players player-id :max-mana]))
+
+(defn reset-mana
+  "Increases max-mana and resets current mana to max-mana"
+  {:test (fn []
+           (is= (-> (create-game [{:mana 5 :max-mana 8}])
+                    (reset-mana "p1")
+                    (get-mana "p1"))
+                9)
+           (is= (-> (create-game [{:mana 5 :max-mana 10}])
+                    (reset-mana "p1")
+                    (get-mana "p1"))
+                10)
+           (is= (-> (create-game [{:mana 10 :max-mana 10}])
+                    (reset-mana "p1")
+                    (get-mana "p1"))
+                10)
+           (is= (-> (create-game [{:mana 5 :max-mana 8}])
+                    (reset-mana "p1")
+                    (get-max-mana "p1"))
+                9))}
+  
+  [state player-id]
+  (let []
+    (if-not (= (get-max-mana state player-id) 10)
+      (-> (update-player-max-mana state player-id (do (inc (get-max-mana state player-id))))
+          (update-player-mana player-id (do (inc (get-max-mana state player-id)))))
+      (update-player-mana state player-id (get-max-mana state player-id)))))
+
+
+(defn get-fatigue
+  {:test (fn []
+           (is= (as-> (create-game) $
+                  (get-fatigue $ "p1")
+                  (get-player $ "p1")
+                  (:fatigue $))
+                2)
+           (is= (as-> (create-game) $
+                  (get-fatigue $ "p1")
+                  (get-fatigue $ "p1")
+                  (get-player $ "p1")
+                  (:fatigue $))
+                3))}
+  [state player-id]
+  (->
+   (update-in state [:players "p1" :hero :damage-taken]
+              + (get-in state [:players "p1" :fatigue]))
+   (update-in [:players "p1" :fatigue] + 1)))
