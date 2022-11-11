@@ -650,6 +650,7 @@
                     (get-mana "p1"))
                 5))}
   [state player-id]
+  {:pre [(map? state) (string? player-id)]}
   (get-in state [:players player-id :mana]))
 
 (defn get-max-mana
@@ -662,6 +663,7 @@
                     (get-max-mana "p1"))
                 5))}
   [state player-id]
+  {:pre [(map? state) (string? player-id)]}
   (get-in state [:players player-id :max-mana]))
 
 (defn reset-mana
@@ -685,6 +687,7 @@
                 9))}
   
   [state player-id]
+  {:pre [(map? state) (string? player-id)]}
   (let []
     (if-not (= (get-max-mana state player-id) 10)
       (-> (update-player-max-mana state player-id (do (inc (get-max-mana state player-id))))
@@ -706,6 +709,7 @@
                   (:fatigue $))
                 3))}
   [state player-id]
+  {:pre [(map? state) (string? player-id)]}
   (-> (update-in state [:players player-id :hero :damage-taken]
                  + (get-in state [:players player-id :fatigue]))
       (update-in [:players player-id :fatigue] + 1)))
@@ -715,6 +719,7 @@
            (is= (-> (get-card-cost (create-card "Boulderfist Ogre")))
                 6))}
   [card]
+  {:pre [(map? card)]}
   (-> (get-definition card)
       (:mana-cost)))
 
@@ -725,6 +730,7 @@
                     (:name))
                 "Boulderfist Ogre"))}
   [state card-id]
+  {:pre [(map? state) (string? card-id)]}
   (-> (filter (fn [x] (= (:id x) card-id)) (into [] (concat (get-in state [:players "p1" :hand]) (get-in state [:players "p2" :hand]))))
       (first)))
 
@@ -735,18 +741,14 @@
                     (:damage-taken))
                 0))}
   [card]
+  {:pre [(map? card)]}
   (-> (get-definition (:name card))
       (:name)
-      (create-minion )))
+      (create-minion)))
 
-(defn insert-minion-at-pos
-  "Inserts an element at a position in the list and returns the list"
-  {:test (fn []
-           (is= (-> [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]
-                    (insert-minion-at-pos (create-minion "Nightblade") 1)
-                    (second)
-                    (:name))
-                "Nightblade"))}
-  [minion-list minion position]
-  (let [[left right] (split-at position minion-list)]
-    (into [] (concat left [minion] right))))
+(defn get-minion-owner
+  "Returns the id"
+  [state id]
+  {:pre [(map? state) (string? id)]}
+  (-> (get-minion state id)
+      (:owner-id)))

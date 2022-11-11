@@ -16,6 +16,7 @@
                                          update-minion]]
             [firestone.core :refer [battlecry
                                     draw-card
+                                    get-damage-taken
                                     get-health
                                     get-attack
                                     get-entity-type
@@ -90,8 +91,8 @@
   (if (valid-attack? state player-id attacker-id target-id)
     (let [type (get-entity-type state target-id)]
       (cond (= type :minion)
-            (as-> (update-minion state target-id :damage-taken (get-attack state attacker-id)) $
-              (update-minion $ attacker-id :damage-taken (get-attack state target-id))
+            (as-> (update-minion state target-id :damage-taken (+ (get-attack state attacker-id) (get-damage-taken state target-id))) $
+              (update-minion $ attacker-id :damage-taken (+ (get-attack state target-id) (get-damage-taken state attacker-id)))
               (let [st $]
                 (if (remove-minion? st attacker-id)
                   (remove-minion st attacker-id)
@@ -103,7 +104,7 @@
               (set-minion-attacked $ attacker-id))
             
             (= type :hero)
-            (-> (update-hero state target-id :damage-taken (get-attack state attacker-id))
+            (-> (update-hero state target-id :damage-taken (+ (get-attack state attacker-id) (get-damage-taken state target-id)))
                 (set-minion-attacked attacker-id))
 
             :else

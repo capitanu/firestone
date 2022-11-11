@@ -10,7 +10,6 @@
                                          create-game
                                          create-hero
                                          create-minion
-                                         insert-minion-at-pos
                                          get-card
                                          get-card-cost
                                          get-hand
@@ -99,6 +98,8 @@
   (let [minion (get-minion state id)
         definition (get-definition minion)]
     (:attack definition)))
+
+
 
 
 (defn sleepy?
@@ -211,6 +212,7 @@
                     :attacks-performed-this-turn)
                 0))}
   [state player-id]
+  {:pre [(map? state) (string? player-id)]}
   (as-> (get-in state [:players player-id :minions]) $
     (mapv (fn [x] (update x :attacks-performed-this-turn (constantly 0))) $)
     (update-in state [:players player-id :minions] (constantly $))))
@@ -226,6 +228,7 @@
                     (remove-minion? "n"))
                 false))}
   [state minion-id]
+  {:pre [(map? state) (string? minion-id)]}
   (< (get-health state minion-id)
      0))
 
@@ -238,6 +241,7 @@
                     (count))
                 0))}
   [state minion-id]
+  {:pre [(map? state) (string? minion-id)]}
   (let [player-id (-> state
                       (get-character minion-id)
                       (:owner-id))]
@@ -253,6 +257,7 @@
                   (get $ :minion-ids-summoned-this-turn))
                 []))}
   [state]
+  {:pre [(map? state)]}
   (update state :minion-ids-summoned-this-turn (constantly [])))
 
 (defn minion-attacked?
@@ -265,6 +270,7 @@
                     (minion-attacked? "shr"))
                 true))}
   [state minion-id]
+    {:pre [(map? state) (string? minion-id)]}
   (if (= 1
            (-> (get-character state minion-id)
                 (:attacks-performed-this-turn)))
@@ -282,6 +288,7 @@
                     (minion-attacked? "shr"))
                 false))}
   [state minion-id]
+  {:pre [(map? state) (string? minion-id)]}
   (update-minion state minion-id :attacks-performed-this-turn 1))
 
 (defn valid-play-card?
@@ -296,6 +303,7 @@
                     (valid-play-card? "p1" (create-card "Boulderfist Ogre")))
                 true))}
   [state player-id card]
+  {:pre [(map? state) (string? player-id) (map? card)]}
   (and (= (:player-id-in-turn state) player-id)
        (< (count (get-in state [:players player-id :minions])) 7)
        (<= (get-card-cost card)
@@ -309,6 +317,7 @@
                 1))
    }
   [state player-id card]
+  {:pre [(map? state) (string? player-id) (map? card)]}
   (let [mana-cost (get-card-cost card) player-mana (get-mana state player-id)]
     (update-player-mana state player-id (- player-mana mana-cost))))
 
@@ -323,6 +332,7 @@
                       (:id)))
                 "n"))}
   [state player-id card]
+  {:pre [(map? state) (string? player-id) (map? card)]}
   (as-> (remove (fn [x] (= (:id x) (:id card))) (get-hand state player-id)) $
     (update-in state [:players player-id :hand] (constantly $)))
   )
@@ -350,6 +360,7 @@
                     (map :name $)))
                 ["Boulderfist Ogre" "Boulderfist Ogre" "Nightblade"]))}
   [state player-id card position]
+  {:pre [(map? state) (string? player-id) (map? card) (int? position)]}
   (let [minion (card->minion card)]
     (as-> (add-minion-to-board state player-id minion position) $
       (let [state-temp $]
@@ -362,22 +373,141 @@
                               (:id))]
             (update-in state-temp [:minion-ids-summoned-this-turn] (constantly (conj (get state-temp :minion-ids-summoned-this-turn) minion-id)))))))))
 
+(defn get-latest-minion
+  "Gets the last minion played on the board"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (add-minion-to-board "p1" (create-minion "Boulderfist Ogre") 0)
+                    (add-minion-to-board "p1" (create-minion "Injured Blademaster") 0)
+                    (get-latest-minion)
+                    (:name))
+                "Injured Blademaster"))}
+  [state]
+  {:pre [(map? state)]}
+  (let [all-minions (concat
+                     (get-in state [:players "p1" :minions])
+                     (get-in state [:players "p2" :minions]))]
+    (reduce (fn [x y]
+              (if (< (:added-to-board-time-id x)
+                     (:added-to-board-time-id y))
+                y
+                x))
+              (first all-minions)
+              all-minions)))
+
+(defn battlecry-antique-healbot
+  "Performs the battlecry for Antique Healbot"
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Jaine Proudmoore" :damage-taken 10)}])
+                    (battlecry-antique-healbot "p1")
+                    (get-in [:players "p1" :hero :damage-taken]))
+                2))}
+  [state player-id]
+  {:pre [(map? state) (string? player-id)]}
+  (update-in state [:players player-id :hero :damage-taken]
+             (constantly (max 0
+                              (- (get-in state [:players player-id :hero :damage-taken]) 8)))))
+
+
+(defn battlecry-injured-blademaster
+  "Performs the battlecry for Injured Blademaster"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Injured Blademaster" :id "ib")]}])
+                    (battlecry-injured-blademaster)
+                    (get-health "ib"))
+                3))}
+  [state]
+  {:pre [(map? state)]}
+  (let [minion-id (:id (get-latest-minion state))]
+    (update-minion state minion-id :damage-taken 4)))
+
+
+(defn battlecry-nightblade
+  "Performs the battlecry for nightblade"
+  {:test (fn []
+           (is= (-> (create-game [{:hero "Jaina Proudmoore"} {:hero (create-hero "Jaina Proudmoore" :id "jp")}])
+                    (battlecry-nightblade "p1")
+                    (get-health  "jp"))
+                27))}
+  [state player-id]
+  {:pre [(map? state) (string? player-id)]}
+  (let [player-change-fn {"p1" "p2"
+                          "p2" "p1"}]
+    (let [opponent-id (player-change-fn player-id)]
+      (update-in state [:players opponent-id :hero :damage-taken]
+                 (constantly (+ (get-in state [:players opponent-id :hero :damage-taken])
+                                3))))))
+
 (defn battlecry
   "Makes the battle-cry happen"
   {:test (fn []
-           (is= true true))}
+           (is= (-> (create-game [{:hero (create-hero "Jaine Proudmoore" :damage-taken 10)}])
+                    (battlecry "p1" (create-card "Antique Healbot"))
+                    (get-in [:players "p1" :hero :damage-taken]))
+                2))}
   [state player-id card]
-  state
-  )
+  {:pre [(map? state) (string? player-id) (map? card)]}
+  (cond (= (:name card)
+           "Antique Healbot")
+        (battlecry-antique-healbot state player-id)
 
-(-> (let [state (create-game [{:hand [(create-card "Boulderfist Ogre" :id "bo")]}])
-          player-id "p1"
-          card-id "bo"
-          position 0]
-      (let [card (get-card state card-id)]
-        (if (valid-play-card? state player-id card)
-          (-> (pay-mana state player-id card)
-              (remove-card-hand player-id card)
-              (place-card-board player-id card position)
-              (battlecry player-id card))
-          ))))
+        (= (:name card)
+           "Nightblade")
+        (battlecry-nightblade state player-id)
+
+        (= (:name card)
+           "Injured Blademaster")
+        (battlecry-injured-blademaster state)
+
+        :else
+        state))
+
+(defn get-owner
+  "Return the id of the owner"
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :id "jp")}])
+                    (get-owner "jp"))
+                "p1")
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo")]}])
+                    (get-owner "bo"))
+                "p1")
+           )}
+  [state id]
+  {:pre [(map? state) (string? id)]}
+  (cond (= (get-entity-type state id)
+           :minion)
+        (-> (get-minion state id)
+            (:owner-id))
+
+        (= (get-entity-type state id)
+           :hero)
+        (cond (= (get-in state [:players "p1" :hero :id]) id)
+              "p1"
+
+              (= (get-in state [:players "p2" :hero :id]) id)
+              "p2"
+
+              :else
+              (error "Invalid hero id"))))
+
+(defn get-damage-taken
+  "Return the damage taken by the entity"
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :id "jp" :damage-taken 25)}])
+                    (get-damage-taken "jp"))
+                25)
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo" :damage-taken 2)]}])
+                    (get-damage-taken "bo"))
+                2))}
+  [state id]
+  {:pre [(map? state) (string? id)]}
+  (cond (= (get-entity-type state id)
+           :minion)
+        (-> (filter (fn [x] (= (:id x) id)) (get-in state [:players (get-owner state id) :minions]))
+            (first)
+            (:damage-taken))
+
+        (= (get-entity-type state id)
+           :hero)
+        (get-in state [:players (get-owner state id) :hero :damage-taken])))
+
