@@ -2,27 +2,34 @@
   (:require [ysera.test :refer [is= error?]]
             [ysera.error :refer [error]]
             [firestone.construct :refer [create-game
+                                         get-card
                                          get-fatigue
                                          get-hand
                                          get-player-id-in-turn
                                          get-players
                                          add-minion-to-board
-                                         create-minion
+                                         create-card
                                          create-hero
+                                         create-minion
                                          reset-mana
                                          update-hero
                                          update-minion]]
-            [firestone.core :refer [draw-card
+            [firestone.core :refer [battlecry
+                                    draw-card
                                     get-health
                                     get-attack
                                     get-entity-type
                                     take-fatigue?
+                                    pay-mana
+                                    place-card-board
                                     reset-minions-attack
+                                    remove-card-hand
                                     remove-minion
                                     remove-minion?
                                     remove-sleeping-minions
                                     set-minion-attacked
-                                    valid-attack?]]))
+                                    valid-attack?
+                                    valid-play-card?]]))
 
 
 
@@ -38,9 +45,9 @@
                     (get-player-id-in-turn))
                 "p1")
            (is= (as-> (create-game [{:deck ["Boulderfist Ogre"]}] :player-id-in-turn "p2") $
-                    (end-turn $ "p2")
-                    (get-hand $ "p1")
-                    (map :name $))
+                  (end-turn $ "p2")
+                  (get-hand $ "p1")
+                  (map :name $))
                 ["Boulderfist Ogre"])
            (error? (-> (create-game)
                        (end-turn "p2"))))}
@@ -67,6 +74,10 @@
                     (attack "p1" "shr" "ib")
                     (get-health "ib"))
                 6)
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo")]}])
+                    (attack "p1" "bo" "h2")
+                    (get-in [:players "p2" :hero :damage-taken]))
+                6)
            (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr")]
                                    :hero (create-hero "Rexxar" :id "r")}
                                   {:minions [(create-minion "Injured Blademaster" :id "ib")]
@@ -92,10 +103,27 @@
               (set-minion-attacked $ attacker-id))
             
             (= type :hero)
-            (->
-             (update-hero state target-id :damage-taken (get-attack state attacker-id))
-             (set-minion-attacked attacker-id))
+            (-> (update-hero state target-id :damage-taken (get-attack state attacker-id))
+                (set-minion-attacked attacker-id))
 
-             :else
-             (error "Type of the card is unrecognized")))
+            :else
+            (error "Type of the card is unrecognized")))
     (error "Invalid attack")))
+
+(defn play-minion-card
+  "Plays a minion card if it is available in the hand"
+  {:test (fn []
+           (is= (as-> (create-game [{:hand [(create-card "Silver Hand Recruit" :id "bo")]}]) $
+                  (play-minion-card $ "p1" "bo" 0)
+                  (get-in $ [:players "p1" :minions])
+                  (map :name $))
+                ["Silver Hand Recruit"]))}
+  [state player-id card-id position]
+  (let [card (get-card state card-id)]
+    (if (valid-play-card? state player-id card)
+      (-> (pay-mana state player-id card)
+          (remove-card-hand player-id card)
+          (place-card-board player-id card position)
+          (battlecry player-id card))
+      (error "Not a valid minion to play"))))
+

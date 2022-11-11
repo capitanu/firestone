@@ -4,16 +4,23 @@
             [ysera.collections :refer [seq-contains?]]
             [firestone.definitions :refer [get-definition]]
             [firestone.construct :refer [add-cards-to-deck
+                                         add-minion-to-board
+                                         card->minion
                                          create-card
                                          create-game
                                          create-hero
                                          create-minion
+                                         insert-minion-at-pos
+                                         get-card
+                                         get-card-cost
                                          get-hand
                                          get-heroes
+                                         get-mana
                                          get-minion
                                          get-minions
                                          get-player
-                                         update-minion]]))
+                                         update-minion
+                                         update-player-mana]]))
 
 
 (defn get-character
@@ -104,7 +111,6 @@
                        (sleepy? "n"))))}
   [state id]
   (seq-contains? (:minion-ids-summoned-this-turn state) id))
-
 
 (defn valid-attack?
   "Checks if the attack is valid"
@@ -249,7 +255,6 @@
   [state]
   (update state :minion-ids-summoned-this-turn (constantly [])))
 
-
 (defn minion-attacked?
   "Truthy if minion attacked, falsey otherwise"
   {:test (fn []
@@ -278,3 +283,101 @@
                 false))}
   [state minion-id]
   (update-minion state minion-id :attacks-performed-this-turn 1))
+
+(defn valid-play-card?
+  {:test (fn []
+           (is= (-> (create-game [{:mana 5}])
+                    (valid-play-card? "p1" (create-card "Boulderfist Ogre")))
+                false)
+           (is= (-> (create-game [{:mana 6}])
+                    (valid-play-card? "p1" (create-card "Boulderfist Ogre")))
+                true)
+           (is= (-> (create-game [{:mana 7}])
+                    (valid-play-card? "p1" (create-card "Boulderfist Ogre")))
+                true))}
+  [state player-id card]
+  (and (= (:player-id-in-turn state) player-id)
+       (< (count (get-in state [:players player-id :minions])) 7)
+       (<= (get-card-cost card)
+           (get-mana state player-id))))
+
+(defn pay-mana
+  {:test (fn []
+           (is= (-> (create-game [{:mana 7}])
+                    (pay-mana "p1" (create-card "Boulderfist Ogre"))
+                    (get-mana "p1"))
+                1))
+   }
+  [state player-id card]
+  (let [mana-cost (get-card-cost card) player-mana (get-mana state player-id)]
+    (update-player-mana state player-id (- player-mana mana-cost))))
+
+(defn remove-card-hand
+  "Removes a card from the hand"
+  {:test (fn []
+           (is= (let [card (create-card "Boulderfist Ogre" :id "bo")]
+                  (-> (create-game [{:hand [card (create-card "Nightblade" :id "n" )]}])
+                      (remove-card-hand "p1" card)
+                      (get-in [:players "p1" :hand])
+                      (first)
+                      (:id)))
+                "n"))}
+  [state player-id card]
+  (as-> (remove (fn [x] (= (:id x) (:id card))) (get-hand state player-id)) $
+    (update-in state [:players player-id :hand] (constantly $)))
+  )
+
+(defn place-card-board
+  "Creates a minion and places it on the board"
+  {:test (fn []
+           (is= (let [card (create-card "Boulderfist Ogre" :id "bo")]
+                  (-> (create-game [{:hand [card]}])
+                    (place-card-board "p1" card 1)
+                    (get-in [:players "p1" :minions])
+                    (first)
+                    (:name)))
+                "Boulderfist Ogre")
+           (is= (let [card (create-card "Boulderfist Ogre" :id "bo")]
+                  (-> (create-game [{:hand [card]}])
+                    (place-card-board "p1" card 1)
+                    (get :minion-ids-summoned-this-turn)
+                    (count)))
+                1)
+           (is= (let [card (create-card "Nightblade" :id "n")]
+                  (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
+                    (place-card-board $ "p1" card 0)
+                    (get-in $ [:players "p1" :minions])
+                    (map :name $)))
+                ["Boulderfist Ogre" "Boulderfist Ogre" "Nightblade"]))}
+  [state player-id card position]
+  (let [minion (card->minion card)]
+    (as-> (add-minion-to-board state player-id minion position) $
+      (let [state-temp $]
+        (let [minions (get-in $ [:players player-id :minions])]
+          (let [minion-id (-> (filter
+                               (fn [x] (= (:added-to-board-time-id x)
+                                         (reduce max (map (fn [y] (:added-to-board-time-id y)) minions))))
+                               minions)
+                              (first)
+                              (:id))]
+            (update-in state-temp [:minion-ids-summoned-this-turn] (constantly (conj (get state-temp :minion-ids-summoned-this-turn) minion-id)))))))))
+
+(defn battlecry
+  "Makes the battle-cry happen"
+  {:test (fn []
+           (is= true true))}
+  [state player-id card]
+  state
+  )
+
+(-> (let [state (create-game [{:hand [(create-card "Boulderfist Ogre" :id "bo")]}])
+          player-id "p1"
+          card-id "bo"
+          position 0]
+      (let [card (get-card state card-id)]
+        (if (valid-play-card? state player-id card)
+          (-> (pay-mana state player-id card)
+              (remove-card-hand player-id card)
+              (place-card-board player-id card position)
+              (battlecry player-id card))
+          ))))

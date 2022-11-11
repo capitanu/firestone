@@ -155,9 +155,9 @@
                     (get-minions))
                 [])
            (is= (as-> (create-empty-state) $
-                      (assoc-in $ [:players "p1" :minions] [(create-minion "Nightblade")])
-                      (get-minions $ "p1")
-                      (map :name $))
+                  (assoc-in $ [:players "p1" :minions] [(create-minion "Nightblade")])
+                  (get-minions $ "p1")
+                  (map :name $))
                 ["Nightblade"]))}
   ([state player-id]
    (:minions (get-player state player-id)))
@@ -185,7 +185,6 @@
   [state player-id]
   (get-in state [:players player-id :hand]))
 
-
 (defn- generate-id
   "Generates an id and returns a tuple with the new state and the generated id."
   {:test (fn []
@@ -210,9 +209,9 @@
   {:test (fn []
            ;; Adding a minion to an empty board
            (is= (as-> (create-empty-state) $
-                      (add-minion-to-board $ "p1" (create-minion "Injured Blademaster" :id "ib") 0)
-                      (get-minions $ "p1")
-                      (map (fn [m] {:id (:id m) :name (:name m)}) $))
+                  (add-minion-to-board $ "p1" (create-minion "Injured Blademaster" :id "ib") 0)
+                  (get-minions $ "p1")
+                  (map (fn [m] {:id (:id m) :name (:name m)}) $))
                 [{:id "ib" :name "Injured Blademaster"}])
            ;; Adding a minion and update positions
            (let [minions (-> (create-empty-state)
@@ -238,28 +237,28 @@
                        [state (str "m" value)]))
         [state time-id] (generate-time-id state)
         ready-minion (assoc minion :position position
-                                   :owner-id player-id
-                                   :id id
-                                   :added-to-board-time-id time-id)]
+                            :owner-id player-id
+                            :id id
+                            :added-to-board-time-id time-id)]
     (update-in state
-               [:players player-id :minions]
-               (fn [minions]
-                 (conj (->> minions
-                            (mapv (fn [m]
-                                    (if (< (:position m) position)
-                                      m
-                                      (update m :position inc)))))
-                       ready-minion)))))
+     [:players player-id :minions]
+     (fn [minions]
+       (conj (->> minions
+                  (mapv (fn [m]
+                          (if (< (:position m) position)
+                                          m
+                                          (update m :position inc)))))
+                           ready-minion)))))
 
 
 (defn add-minions-to-board
   {:test (fn []
            (is= (as-> (create-empty-state) $
-                      (add-minions-to-board $ "p1" [(create-minion "Nightblade")
-                                                    "Injured Blademaster"
-                                                    (create-minion "Silver Hand Recruit")])
-                      (get-minions $ "p1")
-                      (map :name $))
+                  (add-minions-to-board $ "p1" [(create-minion "Nightblade")
+                                                "Injured Blademaster"
+                                                (create-minion "Silver Hand Recruit")])
+                  (get-minions $ "p1")
+                  (map :name $))
                 ["Nightblade" "Injured Blademaster" "Silver Hand Recruit"]))}
   [state player-id minions]
   (->> minions
@@ -278,17 +277,17 @@
   {:test (fn []
            ;; Adding cards to deck
            (is= (as-> (create-empty-state) $
-                      (add-card-to $ "p1" "Nightblade" :deck)
-                      (add-card-to $ "p1" "Silver Hand Recruit" :deck)
-                      (get-deck $ "p1")
-                      (map :name $))
+                  (add-card-to $ "p1" "Nightblade" :deck)
+                  (add-card-to $ "p1" "Silver Hand Recruit" :deck)
+                  (get-deck $ "p1")
+                  (map :name $))
                 ["Nightblade" "Silver Hand Recruit"])
            ;; Adding cards to hand
            (is= (as-> (create-empty-state) $
-                      (add-card-to $ "p1" "Nightblade" :hand)
-                      (add-card-to $ "p1" "Silver Hand Recruit" :hand)
-                      (get-hand $ "p1")
-                      (map :name $))
+                  (add-card-to $ "p1" "Nightblade" :hand)
+                  (add-card-to $ "p1" "Silver Hand Recruit" :hand)
+                  (get-hand $ "p1")
+                  (map :name $))
                 ["Nightblade" "Silver Hand Recruit"]))}
   [state player-id card-or-name place]
   (let [card (if (string? card-or-name)
@@ -299,16 +298,16 @@
                      (let [[state value] (generate-id state)]
                        [state (str "c" value)]))
         ready-card (assoc card :owner-id player-id
-                               :id id)]
+                          :id id)]
     (update-in state [:players player-id place] conj ready-card)))
 
 
 (defn add-card-to-deck
   {:test (fn []
            (is= (as-> (create-empty-state) $
-                      (add-card-to-deck $ "p1" "Nightblade")
-                      (get-deck $ "p1")
-                      (map :name $))
+                  (add-card-to-deck $ "p1" "Nightblade")
+                  (get-deck $ "p1")
+                  (map :name $))
                 ["Nightblade"]))}
   [state player-id card]
   (add-card-to state player-id card :deck))
@@ -317,9 +316,9 @@
 (defn add-card-to-hand
   {:test (fn []
            (is= (as-> (create-empty-state) $
-                      (add-card-to-hand $ "p1" "Nightblade")
-                      (get-hand $ "p1")
-                      (map :name $))
+                  (add-card-to-hand $ "p1" "Nightblade")
+                  (get-hand $ "p1")
+                  (map :name $))
                 ["Nightblade"]))}
   [state player-id card]
   (add-card-to state player-id card :hand))
@@ -328,9 +327,9 @@
 (defn add-cards-to-deck
   {:test (fn []
            (is= (as-> (create-empty-state) $
-                      (add-cards-to-deck $ "p1" ["Nightblade" "Silver Hand Recruit"])
-                      (get-deck $ "p1")
-                      (map :name $))
+                  (add-cards-to-deck $ "p1" ["Nightblade" "Silver Hand Recruit"])
+                  (get-deck $ "p1")
+                  (map :name $))
                 ["Nightblade" "Silver Hand Recruit"]))}
   [state player-id cards]
   (reduce (fn [state card]
@@ -342,9 +341,9 @@
 (defn add-cards-to-hand
   {:test (fn []
            (is= (as-> (create-empty-state) $
-                      (add-cards-to-hand $ "p1" ["Nightblade" "Silver Hand Recruit"])
-                      (get-hand $ "p1")
-                      (map :name $))
+                  (add-cards-to-hand $ "p1" ["Nightblade" "Silver Hand Recruit"])
+                  (get-hand $ "p1")
+                  (map :name $))
                 ["Nightblade" "Silver Hand Recruit"]))}
   [state player-id cards]
   (reduce (fn [state card]
@@ -436,8 +435,8 @@
                                                        :hand     []
                                                        :minions  []
                                                        :hero     {:name         "Rexxar"
-                                                                 :id           "h2"
-                                                                 :entity-type  :hero
+                                                                  :id           "h2"
+                                                                  :entity-type  :hero
                                                                   :damage-taken 0}
                                                        :fatigue  1
                                                        :mana     10
@@ -458,22 +457,22 @@
                                                       :else
                                                       (:hero player-data)))
                                               data)) $
-                     (reduce (fn [state {player-id :player-id
-                                        minions   :minions
-                                        deck      :deck
-                                        mana      :mana
-                                        max-mana  :max-mana
-                                        fatigue   :fatigue
-                                        hand      :hand}]
-                               (-> state
-                                 (add-minions-to-board player-id minions)
-                                 (add-cards-to-deck player-id deck)
-                                 (update-player-mana player-id mana)
-                                 (update-player-max-mana player-id max-mana)
-                                 (update-player-fatigue player-id fatigue)
-                                 (add-cards-to-hand player-id hand)))
-                             $
-                             players-data))]
+                 (reduce (fn [state {player-id :player-id
+                                    minions   :minions
+                                    deck      :deck
+                                    mana      :mana
+                                    max-mana  :max-mana
+                                    fatigue   :fatigue
+                                    hand      :hand}]
+                           (-> state
+                               (add-minions-to-board player-id minions)
+                               (add-cards-to-deck player-id deck)
+                               (update-player-mana player-id mana)
+                               (update-player-max-mana player-id max-mana)
+                               (update-player-fatigue player-id fatigue)
+                               (add-cards-to-hand player-id hand)))
+                         $
+                         players-data))]
      (if (empty? kvs)
        state
        (apply assoc state kvs))))
@@ -634,9 +633,9 @@
                                                (create-minion "Nightblade" :id "n2")]}
                                     {:minions [(create-minion "Nightblade" :id "n3")
                                                (create-minion "Nightblade" :id "n4")]}]) $
-                      (remove-minions $ "n1" "n4")
-                      (get-minions $)
-                      (map :id $))
+                  (remove-minions $ "n1" "n4")
+                  (get-minions $)
+                  (map :id $))
                 ["n2" "n3"]))}
   [state & ids]
   (reduce remove-minion state ids))
@@ -707,7 +706,47 @@
                   (:fatigue $))
                 3))}
   [state player-id]
-  (->
-   (update-in state [:players "p1" :hero :damage-taken]
-              + (get-in state [:players "p1" :fatigue]))
-   (update-in [:players "p1" :fatigue] + 1)))
+  (-> (update-in state [:players player-id :hero :damage-taken]
+                 + (get-in state [:players player-id :fatigue]))
+      (update-in [:players player-id :fatigue] + 1)))
+
+(defn get-card-cost
+  {:test (fn []
+           (is= (-> (get-card-cost (create-card "Boulderfist Ogre")))
+                6))}
+  [card]
+  (-> (get-definition card)
+      (:mana-cost)))
+
+(defn get-card
+  {:test (fn []
+           (is= (-> (create-game [{:hand [(create-card "Boulderfist Ogre" :id "bo")]}])
+                    (get-card "bo")
+                    (:name))
+                "Boulderfist Ogre"))}
+  [state card-id]
+  (-> (filter (fn [x] (= (:id x) card-id)) (into [] (concat (get-in state [:players "p1" :hand]) (get-in state [:players "p2" :hand]))))
+      (first)))
+
+(defn card->minion
+  "Creates a minion out of a card"
+  {:test (fn []
+           (is= (-> (card->minion (create-card "Boulderfist Ogre"))
+                    (:damage-taken))
+                0))}
+  [card]
+  (-> (get-definition (:name card))
+      (:name)
+      (create-minion )))
+
+(defn insert-minion-at-pos
+  "Inserts an element at a position in the list and returns the list"
+  {:test (fn []
+           (is= (-> [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]
+                    (insert-minion-at-pos (create-minion "Nightblade") 1)
+                    (second)
+                    (:name))
+                "Nightblade"))}
+  [minion-list minion position]
+  (let [[left right] (split-at position minion-list)]
+    (into [] (concat left [minion] right))))
