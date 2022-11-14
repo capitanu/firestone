@@ -6,6 +6,10 @@
                                          get-fatigue
                                          get-hand
                                          get-player-id-in-turn
+                                         get-player
+                                         get-minion
+                                         get-max-mana
+                                         get-mana
                                          get-players
                                          add-minion-to-board
                                          create-card
@@ -28,6 +32,7 @@
                                     remove-minion
                                     remove-minion?
                                     remove-sleeping-minions
+                                    sleepy?
                                     set-minion-attacked
                                     valid-attack?
                                     valid-play-card?]]))
@@ -50,6 +55,26 @@
                   (get-hand $ "p1")
                   (map :name $))
                 ["Boulderfist Ogre"])
+
+           (is= (-> (create-game [{:max-mana 0}])
+                       (end-turn "p1")
+                       (end-turn "p2")
+                       (get-max-mana "p1"))
+                1)
+           (is= (-> (create-game [{:mana 0 :max-mana 0}])
+                      (end-turn "p1")
+                      (end-turn "p2")
+                      (get-mana "p1"))
+                1)
+           (is= (->(create-game)
+                    (end-turn "p1")
+                    (get-in [:players "p2" :hero :damage-taken]))
+                1)
+           (is= (-> (create-game [{:minions [(create-minion "Nightblade" :id "n")]}]
+                                 :minion-ids-summoned-this-turn ["n"])
+                    (end-turn "p1")
+                    (sleepy? "n"))
+                false)
            (error? (-> (create-game)
                        (end-turn "p2"))))}
   [state player-id]
@@ -66,6 +91,8 @@
         (if (take-fatigue? s pl-id)
           (get-fatigue s pl-id)
           (draw-card s pl-id))))))
+
+
 
 (defn attack
   {:test (fn []
@@ -86,7 +113,13 @@
                                  :player-id-in-turn "p1")
                     (attack "p1" "shr" "jp")
                     (get-health "jp"))
-                29))}
+                29)
+           (is= (->(create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr")]}
+                                  {:minions [(create-minion "Injured Blademaster" :id "ib")]}]
+                                 :player-id-in-turn "p1")
+                    (attack "p1" "shr" "ib")
+                    (get-minion "shr"))
+                nil))}
   [state player-id attacker-id target-id]
   (if (valid-attack? state player-id attacker-id target-id)
     (let [type (get-entity-type state target-id)]
@@ -114,11 +147,24 @@
 (defn play-minion-card
   "Plays a minion card if it is available in the hand"
   {:test (fn []
-           (is= (as-> (create-game [{:hand [(create-card "Silver Hand Recruit" :id "bo")]}]) $
-                  (play-minion-card $ "p1" "bo" 0)
+           (is= (as-> (create-game [{:hand [(create-card "Silver Hand Recruit" :id "shr")]}]) $
+                  (play-minion-card $ "p1" "shr" 0)
                   (get-in $ [:players "p1" :minions])
                   (map :name $))
-                ["Silver Hand Recruit"]))}
+                ["Silver Hand Recruit"])
+           (is= (as-> (create-game [{:hand [(create-card "Silver Hand Recruit" :id "shr")]}]) $
+                      (play-minion-card $ "p1" "shr" 0)
+                      (get-in $ [:players "p1" :minions])
+                      (map :name $))
+                ["Silver Hand Recruit"])
+           (is= (as-> (create-game [{:hand [(create-card "Nightblade" :id "n")]}])$
+                 (play-minion-card $ "p1" "n" 0)
+                 (get-in $ [:players "p2" :hero :damage-taken]))
+                3)
+           (error? (as-> (create-game [{:hand [(create-card "Nightblade" :id "n")]
+                                        :mana 0}])$
+                      (play-minion-card $ "p1" "n" 0)
+                )))}
   [state player-id card-id position]
   (let [card (get-card state card-id)]
     (if (valid-play-card? state player-id card)

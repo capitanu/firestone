@@ -617,13 +617,20 @@
            (is= (-> (create-game [{:minions [(create-minion "Nightblade" :id "n")]}])
                     (remove-minion "n")
                     (get-minions))
-                []))}
+                [])
+           (is= (-> (create-game [{:minions [(create-minion "Nightblade" :id "n")]}])
+               (remove-minion "ob")
+               (get-minion "n")
+               (:id))
+           "n"))}
   [state id]
   (let [owner-id (:owner-id (get-minion state id))]
     (update-in state
                [:players owner-id :minions]
                (fn [minions]
                  (remove (fn [m] (= (:id m) id)) minions)))))
+
+
 
 
 (defn remove-minions
@@ -739,16 +746,27 @@
   {:test (fn []
            (is= (-> (card->minion (create-card "Boulderfist Ogre"))
                     (:damage-taken))
-                0))}
+                0)
+           (is= (-> (card->minion (create-card "Boulderfist Ogre"))
+                    (:entity-type))
+                :minion))}
   [card]
   {:pre [(map? card)]}
   (-> (get-definition (:name card))
       (:name)
       (create-minion)))
 
+
 (defn get-minion-owner
-  "Returns the id"
+  "Returns the owner id"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo" :owner-id "p1")]}])
+                    (get-minion-owner "bo"))
+                "p1"))}
   [state id]
   {:pre [(map? state) (string? id)]}
   (-> (get-minion state id)
       (:owner-id)))
+
+(-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo" :owner-id "p1")]}])
+    (get-minion-owner "bo"))
