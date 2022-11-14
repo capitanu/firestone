@@ -66,7 +66,7 @@
                       (end-turn "p2")
                       (get-mana "p1"))
                 1)
-           (is= (->(create-game)
+           (is= (-> (create-game)
                     (end-turn "p1")
                     (get-in [:players "p2" :hero :damage-taken]))
                 1)
