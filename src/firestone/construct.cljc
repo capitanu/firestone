@@ -9,15 +9,18 @@
            (is= (create-hero "Jaina Proudmoore")
                 {:name         "Jaina Proudmoore"
                  :entity-type  :hero
+                 :hero-power-used false
                  :damage-taken 0})
            (is= (create-hero "Jaina Proudmoore" :damage-taken 10)
                 {:name         "Jaina Proudmoore"
+                 :hero-power-used false
                  :entity-type  :hero
                  :damage-taken 10}))}
   ;; Variadic functions [https://clojure.org/guides/learn/functions#_variadic_functions]
   [name & kvs]
   (let [hero {:name         name
               :entity-type  :hero
+              :hero-power-used false
               :damage-taken 0}]
     (if (empty? kvs)
       hero
@@ -79,6 +82,7 @@
                                                        :minions  []
                                                        :hero     {:name         "Jaina Proudmoore"
                                                                   :id           "r"
+                                                                  :hero-power-used false
                                                                   :damage-taken 0
                                                                   :entity-type  :hero}
                                                        :fatigue  1
@@ -90,6 +94,7 @@
                                                        :minions  []
                                                        :hero     {:name         "Rexxar"
                                                                   :id           "h2"
+                                                                  :hero-power-used false
                                                                   :damage-taken 0
                                                                   :entity-type  :hero}
                                                        :fatigue  1
@@ -426,6 +431,7 @@
                                                        :hero    {:name         "Jaina Proudmoore"
                                                                  :id           "h1"
                                                                  :entity-type  :hero
+                                                                 :hero-power-used false
                                                                  :damage-taken 0}
                                                        :fatigue  1
                                                        :mana     10
@@ -436,6 +442,7 @@
                                                        :minions  []
                                                        :hero     {:name         "Rexxar"
                                                                   :id           "h2"
+                                                                  :hero-power-used false
                                                                   :entity-type  :hero
                                                                   :damage-taken 0}
                                                        :fatigue  1
@@ -768,5 +775,47 @@
   (-> (get-minion state id)
       (:owner-id)))
 
-(-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo" :owner-id "p1")]}])
-    (get-minion-owner "bo"))
+(defn get-hero-power-cost
+  "Returns the cost of the hero power, given a hero"
+  {:test (fn []
+           (is= (-> (create-hero "Jaina Proudmoore")
+                    (get-hero-power-cost))
+                2))}
+  [hero]
+  (-> (get-definition (:name hero))
+                      (:hero-power)
+                      (get-definition)
+                      (:mana-cost)))
+
+(defn get-hero-power
+  "Returns the cost of the hero power, given a hero"
+  {:test (fn []
+           (is= (-> (create-hero "Jaina Proudmoore")
+                    (get-hero-power)
+                    (:name))
+                "Fireblast"))}
+  [hero]
+  (-> (get-definition (:name hero))
+                      (:hero-power)
+                      (get-definition)))
+
+(defn reset-hero-power
+  "Resets the use of the hero power"
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :hero-power-used true)}])
+                    (reset-hero-power "p1")
+                    (get-in [:players "p1" :hero :hero-power-used]))
+                false))}
+  [state player-id]
+  (update-in state [:players player-id :hero :hero-power-used] (constantly false)))
+
+(defn set-hero-power
+  "Sets the hero power to used."
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :hero-power-used false)}])
+                    (set-hero-power "p1")
+                    (get-in [:players "p1" :hero :hero-power-used]))
+                true))}
+  [state player-id]
+  (update-in state [:players player-id :hero :hero-power-used] (constantly true)))
+

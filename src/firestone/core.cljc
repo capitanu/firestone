@@ -13,12 +13,16 @@
                                          get-card
                                          get-card-cost
                                          get-hand
+                                         get-hero-by-player-id
+                                         get-hero-power-cost
+                                         get-hero-power
                                          get-heroes
                                          get-mana
                                          get-minion
                                          get-minions
                                          get-player
                                          update-minion
+                                         update-hero
                                          update-player-mana]]))
 
 
@@ -172,14 +176,14 @@
   "Picks up the first card in the deck and puts it in the hand"
   {:test (fn []
            (is= (as-> (create-game [{:deck ["Boulderfist Ogre"]}]) $
-                    (draw-card $ "p1")
-                    (get-hand $ "p1")
-                    (map :name $))
+                  (draw-card $ "p1")
+                  (get-hand $ "p1")
+                  (map :name $))
                 ["Boulderfist Ogre"])
            (is= (as-> (create-game [{:deck ["Silver Hand Recruit"] :hand ["Boulderfist Ogre", "Boulderfist Ogre", "Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre"]}]) $
-                    (draw-card $ "p1")
-                    (get-hand $ "p1")
-                    (count $))
+                  (draw-card $ "p1")
+                  (get-hand $ "p1")
+                  (count $))
                 10)
            (is= (as-> (create-game [{:deck ["Boulderfist Ogre", "Silver Hand Recruit"]}]) $
                   (draw-card $ "p1")
@@ -188,14 +192,14 @@
                   (map :name $))
                 ["Silver Hand Recruit", "Boulderfist Ogre"])
            (error? (-> (create-game)
-                    (draw-card "p1"))))}
+                       (draw-card "p1"))))}
   
   [state player-id]
   (if (= (get-in state [:players player-id :deck])
          [])
     (error "Player deck is empty"))
   (if (< (-> (count (get-in state [:players player-id :hand])))
-           10)
+         10)
     (let [card (peek (get-in state [:players player-id :deck]))]
       (-> (update-in state [:players player-id :deck] pop)
           (update-in [:players player-id :hand] conj card)))
@@ -229,7 +233,7 @@
                 false))}
   [state minion-id]
   {:pre [(map? state) (string? minion-id)]}
-  (< (get-health state minion-id)
+  (<= (get-health state minion-id)
      0))
 
 (defn remove-minion
@@ -245,8 +249,8 @@
   (let [player-id (-> state
                       (get-character minion-id)
                       (:owner-id))]
-    (as-> (filter (fn [x] (not= (:id x) minion-id)) (get-in state [:players player-id :minions])) $
-         (update-in state [:players player-id :minions] (constantly $)))))
+    (as-> (into [] (filter (fn [x] (not= (:id x) minion-id)) (get-in state [:players player-id :minions]))) $
+      (update-in state [:players player-id :minions] (constantly $)))))
 
 
 (defn remove-sleeping-minions
@@ -270,10 +274,10 @@
                     (minion-attacked? "shr"))
                 true))}
   [state minion-id]
-    {:pre [(map? state) (string? minion-id)]}
+  {:pre [(map? state) (string? minion-id)]}
   (if (= 1
-           (-> (get-character state minion-id)
-                (:attacks-performed-this-turn)))
+         (-> (get-character state minion-id)
+             (:attacks-performed-this-turn)))
     true
     false))
 
@@ -312,13 +316,13 @@
 (defn pay-mana
   {:test (fn []
            (is= (-> (create-game [{:mana 7}])
-                    (pay-mana "p1" (create-card "Boulderfist Ogre"))
+                    (pay-mana "p1" 6)
                     (get-mana "p1"))
                 1))
    }
-  [state player-id card]
-  {:pre [(map? state) (string? player-id) (map? card)]}
-  (let [mana-cost (get-card-cost card) player-mana (get-mana state player-id)]
+  [state player-id mana-cost]
+  {:pre [(map? state) (string? player-id) (int? mana-cost)]}
+  (let [player-mana (get-mana state player-id)]
     (update-player-mana state player-id (- player-mana mana-cost))))
 
 (defn remove-card-hand
@@ -342,16 +346,16 @@
   {:test (fn []
            (is= (let [card (create-card "Boulderfist Ogre" :id "bo")]
                   (-> (create-game [{:hand [card]}])
-                    (place-card-board "p1" card 1)
-                    (get-in [:players "p1" :minions])
-                    (first)
-                    (:name)))
+                      (place-card-board "p1" card 1)
+                      (get-in [:players "p1" :minions])
+                      (first)
+                      (:name)))
                 "Boulderfist Ogre")
            (is= (let [card (create-card "Boulderfist Ogre" :id "bo")]
                   (-> (create-game [{:hand [card]}])
-                    (place-card-board "p1" card 1)
-                    (get :minion-ids-summoned-this-turn)
-                    (count)))
+                      (place-card-board "p1" card 1)
+                      (get :minion-ids-summoned-this-turn)
+                      (count)))
                 1)
            (is= (let [card (create-card "Nightblade" :id "n")]
                   (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
@@ -392,8 +396,8 @@
                      (:added-to-board-time-id y))
                 y
                 x))
-              (first all-minions)
-              all-minions)))
+            (first all-minions)
+            all-minions)))
 
 (defn battlecry-antique-healbot
   "Performs the battlecry for Antique Healbot"
@@ -511,3 +515,62 @@
            :hero)
         (get-in state [:players (get-owner state id) :hero :damage-taken])))
 
+(defn valid-hero-power-use?
+  {:test (fn []
+           (is= (-> (create-game [{:mana 1} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (valid-hero-power-use? "p1" "shr"))
+                false)
+           (is= (-> (create-game [{:mana 2} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (valid-hero-power-use? "p1" "shr"))
+                true)
+           (is= (-> (create-game [{:mana 3} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (valid-hero-power-use? "p1"))
+                false)
+           (is= (-> (create-game [{:mana 3 :hero (create-hero "Rexxar")} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (valid-hero-power-use? "p1"))
+                true))}
+  [state player-id & target-id]
+  (and (= (:player-id-in-turn state) player-id)
+       (= (get-in state [:players player-id :hero :hero-power-used]) false)
+       (or (and (= (:name (get-hero-by-player-id state player-id))
+                   "Jaina Proudmoore")
+                target-id)
+           (= (:name (get-hero-by-player-id state player-id))
+              "Rexxar"))
+       (<= (get-hero-power-cost (get-hero-by-player-id state player-id))
+           (get-mana state player-id))))
+
+(defn use-hero-power
+  "Uses the hero power of the current"
+  {:test (fn []
+           (is= (-> (create-game [{} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (use-hero-power "p1" "shr")
+                    (get-minions "p1"))
+                [])
+           )}
+  [state player-id & target-id]
+  (let [hero-power (get-hero-power (get-hero-by-player-id state player-id))]
+    (cond (= (:name hero-power)
+             "Fireblast")
+          (let [tg-id (first target-id) type (get-entity-type state tg-id)]
+            (cond (= type :minion)
+                  (as-> (update-minion state tg-id :damage-taken (+ 1 (get-damage-taken state tg-id))) $
+                    (let [st $]
+                      (if (remove-minion? st tg-id)
+                        (remove-minion st tg-id)
+                        st)))
+                  
+                  (= type :hero)
+                  (update-hero state tg-id :damage-taken (+ 1 (get-damage-taken state tg-id)))
+
+                  :else
+                  (error "Type of the target is unrecognized")))
+
+          (= (:name hero-power)
+             "Ballista Shot")
+          (let [player-change-fn {"p1" "p2"
+                                  "p2" "p1"}]
+            (update-hero state (:id (get-hero-by-player-id state (player-change-fn player-id))) :damage-taken (+ 2 (get-damage-taken state (:id (get-hero-by-player-id state (player-change-fn player-id)))))))
+
+          :else
+          state)))

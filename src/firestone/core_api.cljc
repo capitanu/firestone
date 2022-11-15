@@ -1,13 +1,17 @@
 (ns firestone.core-api
   (:require [ysera.test :refer [is= error?]]
             [ysera.error :refer [error]]
+            [firestone.definitions :refer [get-definition]]
             [firestone.construct :refer [create-game
                                          get-card
                                          get-fatigue
                                          get-hand
+                                         get-hero-by-player-id
+                                         get-hero-power
                                          get-player-id-in-turn
                                          get-player
                                          get-minion
+                                         get-minions
                                          get-max-mana
                                          get-mana
                                          get-players
@@ -16,10 +20,12 @@
                                          create-hero
                                          create-minion
                                          reset-mana
+                                         set-hero-power
                                          update-hero
                                          update-minion]]
             [firestone.core :refer [battlecry
                                     draw-card
+                                    get-character
                                     get-damage-taken
                                     get-health
                                     get-attack
@@ -27,6 +33,7 @@
                                     take-fatigue?
                                     pay-mana
                                     place-card-board
+                                    reset-hero-power
                                     reset-minions-attack
                                     remove-card-hand
                                     remove-minion
@@ -34,7 +41,9 @@
                                     remove-sleeping-minions
                                     sleepy?
                                     set-minion-attacked
+                                    use-hero-power
                                     valid-attack?
+                                    valid-hero-power-use?
                                     valid-play-card?]]))
 
 
@@ -87,12 +96,11 @@
       (reset-mana $ (player-change-fn player-id))
       (remove-sleeping-minions $)
       (reset-minions-attack $ (player-change-fn player-id))
+      (reset-hero-power $ (player-change-fn player-id))
       (let [s $ pl-id (player-change-fn player-id)]
         (if (take-fatigue? s pl-id)
           (get-fatigue s pl-id)
           (draw-card s pl-id))))))
-
-
 
 (defn attack
   {:test (fn []
@@ -168,9 +176,34 @@
   [state player-id card-id position]
   (let [card (get-card state card-id)]
     (if (valid-play-card? state player-id card)
-      (-> (pay-mana state player-id card)
+      (-> (pay-mana state player-id (-> (get-definition (:name card))
+                                        (:mana-cost)))
           (remove-card-hand player-id card)
           (place-card-board player-id card position)
           (battlecry player-id card))
       (error "Not a valid minion to play"))))
+
+(defn hero-power
+  "Uses the hero power of the player's hero"
+  {:test (fn []
+           (is= (-> (create-game [{:hero "Jaina Proudmoore"} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (hero-power "p1" "shr")
+                    (get-minions))
+                [])
+           (is= (-> (create-game [{:hero "Rexxar"} {:hero (create-hero "Jaina Proudmoore" :id "jp")}])
+                    (hero-power "p1")
+                    (get-character "jp")
+                    (get-health))
+                28))}
+  [state player-id & target-id]
+  {:pre [(map? state) (string? player-id)]}
+  (if (valid-hero-power-use? state player-id target-id)
+    (-> (pay-mana state player-id (:mana-cost (get-hero-power (get-hero-by-player-id state player-id))))
+        (use-hero-power player-id (if (empty? target-id)
+                                    nil
+                                    (first target-id)
+                                    ))
+        (set-hero-power player-id))
+    (-> (error "Can not play hero power")
+        state)))    
 
