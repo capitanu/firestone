@@ -23,7 +23,7 @@
     :attack    6
     :health    7
     :mana-cost 6
-4   :type      :minion
+    :type      :minion
     :set       :basic}
 
    ;; Implemented
