@@ -2,10 +2,12 @@
   (:require [ysera.test :refer [is is-not is= error?]]
             [ysera.error :refer [error]]
             [ysera.random :refer [get-random-int
+                                  shuffle-with-seed
                                   random-nth]]
             [ysera.collections :refer [seq-contains?]]
             [firestone.definitions :refer [get-definition]]
             [firestone.construct :refer [add-cards-to-deck
+                                         add-card-to-deck
                                          add-minion-to-board
                                          card->minion
                                          create-card
@@ -15,6 +17,7 @@
                                          get-card
                                          get-card-cost
                                          get-deck
+                                         get-fatigue
                                          get-hand
                                          get-hero-by-player-id
                                          get-hero-power-cost
@@ -238,6 +241,81 @@
   (<= (get-health state minion-id)
       0))
 
+(defn deathrattle-astral-tiger
+  "Peforms the deathrattle of Astral Tiger"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (deathrattle-astral-tiger "p1")
+                    (get-deck "p1")
+                    (count))
+                1)
+           (is= (-> (create-game [{:deck [(create-card "Alexstrasza")]}])
+                    (deathrattle-astral-tiger "p1")
+                    (get-deck "p1")
+                    (count))
+                2))}
+  [state player-id]
+  (if (zero? (count (get-deck state player-id)))
+    (add-card-to-deck state player-id (create-card "Astral Tiger"))
+    (let [[seed place] (get-random-int 1234 (count (get-deck state player-id)))]
+      (as-> (add-card-to-deck state player-id (create-card "Astral Tiger")) $
+        (let [st $
+              [seed2 shuffled-deck] (shuffle-with-seed 1234 (get-deck st player-id))]
+          (update-in st [:players player-id :deck] (constantly shuffled-deck)))))))
+
+
+(defn deathrattle-cairne-bloodhoof
+  "Peforms the deathrattle of Cairne Bloodhoof"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (deathrattle-cairne-bloodhoof "p1")
+                    (get-minions "p1")
+                    (first)
+                    (:name))
+                "Baine Bloodhoof"))}
+  [state player-id]
+  (place-card-board state player-id (create-card "Baine Bloodhoof") 7))
+
+(defn deathrattle-loot-hoarder
+  "Peforms the deathrattle of Loot Hoarder"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (deathrattle-loot-hoarder "p1")
+                    (get-in [:players "p1" :hero :damage-taken]))
+                1)
+           (is= (-> (create-game [{:deck [(create-card "Alexstrasza")]}])
+                    (deathrattle-loot-hoarder "p1")
+                    (get-deck "p1")
+                    (count))
+                0))}
+  [state player-id]
+  (if (take-fatigue? state player-id)
+    (get-fatigue state player-id)
+    (draw-card state player-id)))
+
+(defn deathrattle
+  "Performs the deathrattle of the given minion."
+  {:test (fn []
+           (is= (-> true)
+                true)
+           )}
+  [state player-id minion-id]
+  (let [minion (get-minion state minion-id)]
+    (cond (= (:name minion)
+             "Cairne Bloodhoof")
+          (deathrattle-cairne-bloodhoof state player-id)
+
+          (= (:name minion)
+             "Astral Tiger")
+          (deathrattle-astral-tiger state player-id)
+
+          (= (:name minion)
+             "Loot Hoarder")
+          (deathrattle-loot-hoarder state player-id)
+
+          :else
+          state)))
+
 (defn remove-minion
   "Removes a minion from the table IF it has negative health"
   {:test (fn []
@@ -252,7 +330,8 @@
                       (get-character minion-id)
                       (:owner-id))]
     (as-> (into [] (filter (fn [x] (not= (:id x) minion-id)) (get-in state [:players player-id :minions]))) $
-      (update-in state [:players player-id :minions] (constantly $)))))
+      (update-in state [:players player-id :minions] (constantly $))
+      (deathrattle $ player-id minion-id))))
 
 
 (defn remove-sleeping-minions

@@ -136,7 +136,7 @@
     :rarity      :legendary
     :description "Battlecry: Summon a 1/1 copy of a random minion in your deck."}
 
-   ;; TODO
+   ;; Implemented
    "Astral Tiger"
    {:name        "Astral Tiger"
     :attack      3
@@ -148,7 +148,7 @@
     :set         :kobolds-and-catacombs
     :description "Deathrattle: Shuffle a copy of this minion into your deck."}
 
-   ;; TODO
+   ;; Implemented
    "Loot Hoarder"
    {:name        "Loot Hoarder"
     :attack      2
