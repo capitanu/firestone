@@ -23,7 +23,7 @@
     :attack    6
     :health    7
     :mana-cost 6
-    :type      :minion
+4   :type      :minion
     :set       :basic}
 
    ;; Implemented
@@ -102,7 +102,7 @@
     :rarity      :common
     :description "Combo: Gain +3 Attack."}
 
-   ;; TODO
+   ;; Implemented
    "Alexstrasza"
    {:name         "Alexstrasza"
     :attack       8
@@ -114,7 +114,7 @@
     :race         :dragon
     :description  "Battlecry: Set a hero's remaining Health to 15."}
 
-   ;; TODO
+   ;; Implemented
    "Faceless Manipulator"
    {:name         "Faceless Manipulator"
     :attack       3
@@ -125,7 +125,7 @@
     :type         :minion
     :description  "Battlecry: Choose a minion and become a copy of it."}
 
-   ;; TODO
+   ;; Implemented
    "Barnes"
    {:name        "Barnes"
     :attack      3

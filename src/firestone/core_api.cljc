@@ -20,6 +20,7 @@
                                          create-hero
                                          create-minion
                                          reset-mana
+                                         reset-hero-power
                                          set-hero-power
                                          update-hero
                                          update-minion]]
@@ -33,7 +34,6 @@
                                     take-fatigue?
                                     pay-mana
                                     place-card-board
-                                    reset-hero-power
                                     reset-minions-attack
                                     remove-card-hand
                                     remove-minion
@@ -165,6 +165,15 @@
                       (get-in $ [:players "p1" :minions])
                       (map :name $))
                 ["Silver Hand Recruit"])
+           (is= (as-> (create-game [{:hand [(create-card "Faceless Manipulator" :id "fm")] :minions [(create-minion "Boulderfist Ogre" :id "bo")]}]) $
+                  (play-minion-card $ "p1" "fm" 0 :target-id "bo")
+                  (get-in $ [:players "p1" :minions])
+                  (map :name $))
+                ["Boulderfist Ogre", "Boulderfist Ogre"])
+           (is= (-> (create-game [{:hand [(create-card "Alexstrasza" :id "a")] :minions [(create-minion "Boulderfist Ogre" :id "bo")]}])
+                    (play-minion-card "p1" "a" 0 :target-id "p2")
+                    (get-in [:players "p2" :hero :health]))
+                15)
            (is= (as-> (create-game [{:hand [(create-card "Nightblade" :id "n")]}])$
                  (play-minion-card $ "p1" "n" 0)
                  (get-in $ [:players "p2" :hero :damage-taken]))
@@ -173,14 +182,14 @@
                                         :mana 0}])$
                       (play-minion-card $ "p1" "n" 0)
                 )))}
-  [state player-id card-id position]
+  [state player-id card-id position & {target-id :target-id}]
   (let [card (get-card state card-id)]
     (if (valid-play-card? state player-id card)
       (-> (pay-mana state player-id (-> (get-definition (:name card))
                                         (:mana-cost)))
           (remove-card-hand player-id card)
           (place-card-board player-id card position)
-          (battlecry player-id card))
+          (battlecry player-id card :target-id target-id))
       (error "Not a valid minion to play"))))
 
 (defn hero-power
@@ -205,5 +214,5 @@
                                     ))
         (set-hero-power player-id))
     (-> (error "Can not play hero power")
-        state)))    
+        state)))
 

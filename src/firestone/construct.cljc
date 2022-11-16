@@ -10,16 +10,20 @@
                 {:name         "Jaina Proudmoore"
                  :entity-type  :hero
                  :hero-power-used false
+                 :health       30
                  :damage-taken 0})
            (is= (create-hero "Jaina Proudmoore" :damage-taken 10)
                 {:name         "Jaina Proudmoore"
                  :hero-power-used false
                  :entity-type  :hero
+                 :health       30
                  :damage-taken 10}))}
   ;; Variadic functions [https://clojure.org/guides/learn/functions#_variadic_functions]
   [name & kvs]
-  (let [hero {:name         name
+  (let [definition (get-definition name)
+        hero {:name         name
               :entity-type  :hero
+              :health       (:health definition)
               :hero-power-used false
               :damage-taken 0}]
     (if (empty? kvs)
@@ -34,9 +38,12 @@
            (is= (create-card "Boulderfist Ogre" :id "bo")
                 {:id          "bo"
                  :entity-type :card
+                 :type        :minion
                  :name        "Boulderfist Ogre"}))}
   [name & kvs]
-  (let [card {:name        name
+  (let [definition (get-definition name)
+        card {:name        name
+              :type        (:type definition)
               :entity-type :card}]
     (if (empty? kvs)
       card
@@ -51,6 +58,8 @@
                                :attacks-performed-this-turn 1)
                 {:attacks-performed-this-turn 1
                  :damage-taken                0
+                 :attack                      4
+                 :health                      4
                  :entity-type                 :minion
                  :name                        "Nightblade"
                  :id                          "n"}))}
@@ -58,6 +67,8 @@
   (let [definition (get-definition name)                    ;; Will be used later
         minion {:damage-taken                0
                 :entity-type                 :minion
+                :attack                      (:attack definition)
+                :health                      (:health definition)
                 :name                        name
                 :attacks-performed-this-turn 0}]
     (if (empty? kvs)
@@ -82,6 +93,7 @@
                                                        :minions  []
                                                        :hero     {:name         "Jaina Proudmoore"
                                                                   :id           "r"
+                                                                  :health       30
                                                                   :hero-power-used false
                                                                   :damage-taken 0
                                                                   :entity-type  :hero}
@@ -94,6 +106,7 @@
                                                        :minions  []
                                                        :hero     {:name         "Rexxar"
                                                                   :id           "h2"
+                                                                  :health       30
                                                                   :hero-power-used false
                                                                   :damage-taken 0
                                                                   :entity-type  :hero}
@@ -415,21 +428,26 @@
                                                        :deck    [{:entity-type :card
                                                                   :id          "c3"
                                                                   :name        "Silver Hand Recruit"
+                                                                  :type        :minion
                                                                   :owner-id    "p1"}]
                                                        :hand    [{:entity-type :card
                                                                   :id          "c4"
                                                                   :name        "Boulderfist Ogre"
+                                                                  :type        :minion
                                                                   :owner-id    "p1"}]
                                                        :minions [{:damage-taken                0
                                                                   :attacks-performed-this-turn 0
                                                                   :added-to-board-time-id      2
                                                                   :entity-type                 :minion
+                                                                  :attack                      4
+                                                                  :health                      4
                                                                   :name                        "Nightblade"
                                                                   :id                          "m1"
                                                                   :position                    0
                                                                   :owner-id                    "p1"}]
                                                        :hero    {:name         "Jaina Proudmoore"
                                                                  :id           "h1"
+                                                                 :health       30
                                                                  :entity-type  :hero
                                                                  :hero-power-used false
                                                                  :damage-taken 0}
@@ -442,6 +460,7 @@
                                                        :minions  []
                                                        :hero     {:name         "Rexxar"
                                                                   :id           "h2"
+                                                                  :health       30
                                                                   :hero-power-used false
                                                                   :entity-type  :hero
                                                                   :damage-taken 0}

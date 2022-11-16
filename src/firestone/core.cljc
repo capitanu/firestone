@@ -1,6 +1,8 @@
 (ns firestone.core
   (:require [ysera.test :refer [is is-not is= error?]]
             [ysera.error :refer [error]]
+            [ysera.random :refer [get-random-int
+                                  random-nth]]
             [ysera.collections :refer [seq-contains?]]
             [firestone.definitions :refer [get-definition]]
             [firestone.construct :refer [add-cards-to-deck
@@ -12,6 +14,7 @@
                                          create-minion
                                          get-card
                                          get-card-cost
+                                         get-deck
                                          get-hand
                                          get-hero-by-player-id
                                          get-hero-power-cost
@@ -24,7 +27,6 @@
                                          update-minion
                                          update-hero
                                          update-player-mana]]))
-
 
 (defn get-character
   "Returns the character with the given id from the state."
@@ -88,7 +90,7 @@
   ([character]
    {:pre [(map? character) (contains? character :damage-taken)]}
    (let [definition (get-definition character)]
-     (- (:health definition) (:damage-taken character))))
+     (- (:health character) (:damage-taken character))))
   ([state id]
    (get-health (get-character state id))))
 
@@ -234,7 +236,7 @@
   [state minion-id]
   {:pre [(map? state) (string? minion-id)]}
   (<= (get-health state minion-id)
-     0))
+      0))
 
 (defn remove-minion
   "Removes a minion from the table IF it has negative health"
@@ -402,7 +404,7 @@
 (defn battlecry-antique-healbot
   "Performs the battlecry for Antique Healbot"
   {:test (fn []
-           (is= (-> (create-game [{:hero (create-hero "Jaine Proudmoore" :damage-taken 10)}])
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :damage-taken 10)}])
                     (battlecry-antique-healbot "p1")
                     (get-in [:players "p1" :hero :damage-taken]))
                 2))}
@@ -442,14 +444,58 @@
                  (constantly (+ (get-in state [:players opponent-id :hero :damage-taken])
                                 3))))))
 
+(defn battlecry-alexstrasza
+  "Performs the battlecry for alexstrasza"
+  {:test (fn []
+           (is= (-> (create-game [{:hero "Jaina Proudmoore"} {:hero (create-hero "Jaina Proudmoore" :id "jp")}])
+                    (battlecry-alexstrasza "p1" "p2")
+                    (get-health  "jp"))
+                15))}
+  [state player-id target-id]
+  {:pre [(map? state) (string? player-id)]}
+  (-> (update-in state [:players target-id :hero :damage-taken] (constantly 0))
+      (update-in [:players target-id :hero :health] (constantly 15))))
+
+(defn battlecry-barnes
+  "Performs the battlecry for Alexstrasza"
+  {:test (fn []
+           (is= (-> (create-game [{:deck [(create-card "Alexstrasza")] :minions [(create-minion "Barnes" :id "b")]}])
+                    (battlecry-barnes "p1")
+                    (get-minions "p1")
+                    (count))
+                2))}
+  [state player-id]
+  {:pre [(map? state) (string? player-id)]}
+  (if (< 7 (count (get-in state [:player player-id :minions])))
+    state
+    (as-> (filter (fn [x] (= (:type x) :minion)) (get-deck state player-id)) $
+      (random-nth 1234 $)
+      (second $)
+      (:name $)
+      (add-minion-to-board state player-id (create-minion $ :attack 1 :health 1) 7))))
+
+(defn battlecry-faceless-manipulator
+  "Performs the battlecry for Faceless Manipulator"
+  {:test (fn []
+           (is= (as-> (create-game [{:hero "Jaina Proudmoore" :minions [(create-minion "Boulderfist Ogre" :id "bo")]} {:hero (create-hero "Jaina Proudmoore" :id "jp")}]) $
+                    (place-card-board $ "p1" (create-card "Faceless Manipulator") 0)
+                    (battlecry-faceless-manipulator $ "p1" "bo")
+                    (get-minions $ "p1")
+                    (map :name $))
+                ["Boulderfist Ogre", "Boulderfist Ogre"]))}
+  [state player-id target-id]
+  {:pre [(map? state) (string? player-id)]}
+  (let [target-name (:name (get-minion state target-id)) minion-id (:id (get-latest-minion state))]
+    (update-minion state minion-id :name target-name)))
+
 (defn battlecry
   "Makes the battle-cry happen"
   {:test (fn []
-           (is= (-> (create-game [{:hero (create-hero "Jaine Proudmoore" :damage-taken 10)}])
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :damage-taken 10)}])
                     (battlecry "p1" (create-card "Antique Healbot"))
                     (get-in [:players "p1" :hero :damage-taken]))
                 2))}
-  [state player-id card]
+  [state player-id card & {target-id :target-id}]
   {:pre [(map? state) (string? player-id) (map? card)]}
   (cond (= (:name card)
            "Antique Healbot")
@@ -458,6 +504,18 @@
         (= (:name card)
            "Nightblade")
         (battlecry-nightblade state player-id)
+
+        (= (:name card)
+           "Alexstrasza")
+        (battlecry-alexstrasza state player-id target-id)
+
+        (= (:name card)
+           "Faceless Manipulator")
+        (battlecry-faceless-manipulator state player-id target-id)
+
+        (= (:name card)
+           "Barnes")
+        (battlecry-barnes state player-id)
 
         (= (:name card)
            "Injured Blademaster")
