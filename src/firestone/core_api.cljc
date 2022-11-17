@@ -34,6 +34,7 @@
                                     take-fatigue?
                                     pay-mana
                                     place-card-board
+                                    play-spell
                                     reset-minions-attack
                                     remove-card-hand
                                     remove-minion
@@ -44,7 +45,8 @@
                                     use-hero-power
                                     valid-attack?
                                     valid-hero-power-use?
-                                    valid-play-card?]]))
+                                    valid-play-minion?
+                                    valid-play-spell?]]))
 
 
 
@@ -152,45 +154,60 @@
             (error "Type of the card is unrecognized")))
     (error "Invalid attack")))
 
-(defn play-minion-card
+(defn play-card
   "Plays a minion card if it is available in the hand"
   {:test (fn []
            (is= (as-> (create-game [{:hand [(create-card "Silver Hand Recruit" :id "shr")]}]) $
-                  (play-minion-card $ "p1" "shr" 0)
+                  (play-card $ "p1" "shr" :position 0)
                   (get-in $ [:players "p1" :minions])
                   (map :name $))
                 ["Silver Hand Recruit"])
            (is= (as-> (create-game [{:hand [(create-card "Silver Hand Recruit" :id "shr")]}]) $
-                      (play-minion-card $ "p1" "shr" 0)
+                      (play-card $ "p1" "shr" :position 0)
                       (get-in $ [:players "p1" :minions])
                       (map :name $))
                 ["Silver Hand Recruit"])
            (is= (as-> (create-game [{:hand [(create-card "Faceless Manipulator" :id "fm")] :minions [(create-minion "Boulderfist Ogre" :id "bo")]}]) $
-                  (play-minion-card $ "p1" "fm" 0 :target-id "bo")
+                  (play-card $ "p1" "fm" :position 0 :target-id "bo")
                   (get-in $ [:players "p1" :minions])
                   (map :name $))
                 ["Boulderfist Ogre", "Boulderfist Ogre"])
            (is= (-> (create-game [{:hand [(create-card "Alexstrasza" :id "a")] :minions [(create-minion "Boulderfist Ogre" :id "bo")]}])
-                    (play-minion-card "p1" "a" 0 :target-id "p2")
+                    (play-card "p1" "a" :position 0 :target-id "p2")
                     (get-in [:players "p2" :hero :health]))
                 15)
            (is= (as-> (create-game [{:hand [(create-card "Nightblade" :id "n")]}])$
-                 (play-minion-card $ "p1" "n" 0)
+                 (play-card $ "p1" "n" :position 0)
                  (get-in $ [:players "p2" :hero :damage-taken]))
                 3)
            (error? (as-> (create-game [{:hand [(create-card "Nightblade" :id "n")]
                                         :mana 0}])$
-                      (play-minion-card $ "p1" "n" 0)
-                )))}
-  [state player-id card-id position & {target-id :target-id}]
+                      (play-card $ "p1" "n" 0)
+                      )))}
+  [state player-id card-id & {position :position target-id :target-id}]
   (let [card (get-card state card-id)]
-    (if (valid-play-card? state player-id card)
-      (-> (pay-mana state player-id (-> (get-definition (:name card))
-                                        (:mana-cost)))
-          (remove-card-hand player-id card)
-          (place-card-board player-id card position)
-          (battlecry player-id card :target-id target-id))
-      (error "Not a valid minion to play"))))
+    (cond (= (:type card) :minion)
+          (if (valid-play-minion? state player-id card)
+            (-> (pay-mana state player-id (-> (get-definition (:name card))
+                                              (:mana-cost)))
+                (remove-card-hand player-id card)
+                (place-card-board player-id card position)
+                (battlecry player-id card :target-id target-id)
+                (combo palyer-id card))
+            (error "Not a valid minion to play"))
+
+          (= (:type card) :spell)
+          (if (valid-play-spell? state player-id card)
+            (-> (pay-mana state player-id (-> (get-definition (:name card))
+                                              (:mana-cost)))
+                (remove-card-hand player-id card)
+                (play-spell player-id card))
+            
+            
+            (error "Not a valid spell to play"))
+
+          :else
+          (error "This is not a valid card type"))))
 
 (defn hero-power
   "Uses the hero power of the player's hero"

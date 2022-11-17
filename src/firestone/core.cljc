@@ -3,17 +3,20 @@
             [ysera.error :refer [error]]
             [ysera.random :refer [get-random-int
                                   shuffle-with-seed
+                                  take-n-random
                                   random-nth]]
             [ysera.collections :refer [seq-contains?]]
             [firestone.definitions :refer [get-definition]]
             [firestone.construct :refer [add-cards-to-deck
                                          add-card-to-deck
+                                         add-cards-to-hand
                                          add-minion-to-board
                                          card->minion
                                          create-card
                                          create-game
                                          create-hero
                                          create-minion
+                                         count-damaged-minions
                                          get-card
                                          get-card-cost
                                          get-deck
@@ -264,86 +267,7 @@
           (update-in st [:players player-id :deck] (constantly shuffled-deck)))))))
 
 
-(defn deathrattle-cairne-bloodhoof
-  "Peforms the deathrattle of Cairne Bloodhoof"
-  {:test (fn []
-           (is= (-> (create-game)
-                    (deathrattle-cairne-bloodhoof "p1")
-                    (get-minions "p1")
-                    (first)
-                    (:name))
-                "Baine Bloodhoof"))}
-  [state player-id]
-  (place-card-board state player-id (create-card "Baine Bloodhoof") 7))
 
-(defn deathrattle-loot-hoarder
-  "Peforms the deathrattle of Loot Hoarder"
-  {:test (fn []
-           (is= (-> (create-game)
-                    (deathrattle-loot-hoarder "p1")
-                    (get-in [:players "p1" :hero :damage-taken]))
-                1)
-           (is= (-> (create-game [{:deck [(create-card "Alexstrasza")]}])
-                    (deathrattle-loot-hoarder "p1")
-                    (get-deck "p1")
-                    (count))
-                0))}
-  [state player-id]
-  (if (take-fatigue? state player-id)
-    (get-fatigue state player-id)
-    (draw-card state player-id)))
-
-(defn deathrattle
-  "Performs the deathrattle of the given minion."
-  {:test (fn []
-           (is= (-> true)
-                true)
-           )}
-  [state player-id minion-id]
-  (let [minion (get-minion state minion-id)]
-    (cond (= (:name minion)
-             "Cairne Bloodhoof")
-          (deathrattle-cairne-bloodhoof state player-id)
-
-          (= (:name minion)
-             "Astral Tiger")
-          (deathrattle-astral-tiger state player-id)
-
-          (= (:name minion)
-             "Loot Hoarder")
-          (deathrattle-loot-hoarder state player-id)
-
-          :else
-          state)))
-
-(defn remove-minion
-  "Removes a minion from the table IF it has negative health"
-  {:test (fn []
-           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo")]}])
-                    (remove-minion "bo")
-                    (get-in [:players "p1" :minions])
-                    (count))
-                0))}
-  [state minion-id]
-  {:pre [(map? state) (string? minion-id)]}
-  (let [player-id (-> state
-                      (get-character minion-id)
-                      (:owner-id))]
-    (as-> (into [] (filter (fn [x] (not= (:id x) minion-id)) (get-in state [:players player-id :minions]))) $
-      (update-in state [:players player-id :minions] (constantly $))
-      (deathrattle $ player-id minion-id))))
-
-
-(defn remove-sleeping-minions
-  {:test (fn [] 
-           (is= (as-> (create-game) $
-                  (update $ :minion-ids-summoned-this-turn (constantly ["bo"]))
-                  (remove-sleeping-minions $)
-                  (get $ :minion-ids-summoned-this-turn))
-                []))}
-  [state]
-  {:pre [(map? state)]}
-  (update state :minion-ids-summoned-this-turn (constantly [])))
 
 (defn minion-attacked?
   "Truthy if minion attacked, falsey otherwise"
@@ -376,16 +300,16 @@
   {:pre [(map? state) (string? minion-id)]}
   (update-minion state minion-id :attacks-performed-this-turn 1))
 
-(defn valid-play-card?
+(defn valid-play-minion?
   {:test (fn []
            (is= (-> (create-game [{:mana 5}])
-                    (valid-play-card? "p1" (create-card "Boulderfist Ogre")))
+                    (valid-play-minion? "p1" (create-card "Boulderfist Ogre")))
                 false)
            (is= (-> (create-game [{:mana 6}])
-                    (valid-play-card? "p1" (create-card "Boulderfist Ogre")))
+                    (valid-play-minion? "p1" (create-card "Boulderfist Ogre")))
                 true)
            (is= (-> (create-game [{:mana 7}])
-                    (valid-play-card? "p1" (create-card "Boulderfist Ogre")))
+                    (valid-play-minion? "p1" (create-card "Boulderfist Ogre")))
                 true))}
   [state player-id card]
   {:pre [(map? state) (string? player-id) (map? card)]}
@@ -709,5 +633,220 @@
                                   "p2" "p1"}]
             (update-hero state (:id (get-hero-by-player-id state (player-change-fn player-id))) :damage-taken (+ 2 (get-damage-taken state (:id (get-hero-by-player-id state (player-change-fn player-id)))))))
 
+          :else
+          state)))
+
+(defn deathrattle-cairne-bloodhoof
+  "Peforms the deathrattle of Cairne Bloodhoof"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (deathrattle-cairne-bloodhoof "p1")
+                    (get-minions "p1")
+                    (first)
+                    (:name))
+                "Baine Bloodhoof"))}
+  [state player-id]
+  (place-card-board state player-id (create-card "Baine Bloodhoof") 7))
+
+(defn deathrattle-loot-hoarder
+  "Peforms the deathrattle of Loot Hoarder"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (deathrattle-loot-hoarder "p1")
+                    (get-in [:players "p1" :hero :damage-taken]))
+                1)
+           (is= (-> (create-game [{:deck [(create-card "Alexstrasza")]}])
+                    (deathrattle-loot-hoarder "p1")
+                    (get-deck "p1")
+                    (count))
+                0))}
+  [state player-id]
+  (if (take-fatigue? state player-id)
+    (get-fatigue state player-id)
+    (draw-card state player-id)))
+
+(defn deathrattle
+  "Performs the deathrattle of the given minion."
+  {:test (fn []
+           (is= (-> true)
+                true)
+           )}
+  [state player-id minion-id]
+  (let [minion (get-minion state minion-id)]
+    (cond (= (:name minion)
+             "Cairne Bloodhoof")
+          (deathrattle-cairne-bloodhoof state player-id)
+
+          (= (:name minion)
+             "Astral Tiger")
+          (deathrattle-astral-tiger state player-id)
+
+          (= (:name minion)
+             "Loot Hoarder")
+          (deathrattle-loot-hoarder state player-id)
+
+          :else
+          state)))
+
+(defn remove-minion
+  "Removes a minion from the table IF it has negative health"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo")]}])
+                    (remove-minion "bo")
+                    (get-in [:players "p1" :minions])
+                    (count))
+                0))}
+  [state minion-id]
+  {:pre [(map? state) (string? minion-id)]}
+  (let [player-id (-> state
+                      (get-character minion-id)
+                      (:owner-id))]
+    (as-> (into [] (filter (fn [x] (not= (:id x) minion-id)) (get-in state [:players player-id :minions]))) $
+      (update-in state [:players player-id :minions] (constantly $))
+      (deathrattle $ player-id minion-id))))
+
+
+(defn remove-sleeping-minions
+  {:test (fn [] 
+           (is= (as-> (create-game) $
+                  (update $ :minion-ids-summoned-this-turn (constantly ["bo"]))
+                  (remove-sleeping-minions $)
+                  (get $ :minion-ids-summoned-this-turn))
+                []))}
+  [state]
+  {:pre [(map? state)]}
+  (update state :minion-ids-summoned-this-turn (constantly [])))
+
+
+(defn valid-play-spell?
+  {:test (fn []
+           (is= (-> (create-game [{:mana 1}])
+                    (valid-play-spell? "p1" (create-card "Battle Rage")))
+                false)
+           (is= (-> (create-game [{:mana 5}])
+                    (valid-play-spell? "p1" (create-card "Devour Mind")))
+                true)
+           (is= (-> (create-game [{:mana 7}])
+                    (valid-play-spell? "p1" (create-card "Devour Mind")))
+                true))}
+  [state player-id card]
+  {:pre [(map? state) (string? player-id) (map? card)]}
+  (and (= (:player-id-in-turn state) player-id)
+       (<= (get-card-cost card)
+           (get-mana state player-id))))
+
+(defn play-spell
+  {:test (fn []
+           (is= (-> (create-game [{} {:deck [(create-card "Alexstrasza") (create-card "Alexstrasza") (create-card "Alexstrasza")]}])
+                    (play-spell "p1" (create-card "Devour Mind"))
+                    (get-in [:players "p1" :hand])
+                    (count))
+                3)
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :damage-taken 1)] :deck [(create-card "Alexstrasza") (create-card "Alexstrasza") (create-card "Alexstrasza")]}])
+                    (play-spell "p1" (create-card "Battle Rage"))
+                    (get-in [:players "p1" :hand])
+                    (count))
+                1)
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :damage-taken 1) (create-minion "Alexstrasza" :damage-taken 3)] :deck [(create-card "Alexstrasza") (create-card "Alexstrasza") (create-card "Alexstrasza")]}])
+                    (play-spell "p1" (create-card "Battle Rage"))
+                    (get-in [:players "p1" :hand])
+                    (count))
+                2)
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :damage-taken 1) (create-minion "Alexstrasza" :damage-taken 3)] :deck [(create-card "Alexstrasza")]}])
+                    (play-spell "p1" (create-card "Battle Rage"))
+                    (get-in [:players "p1" :hero :damage-taken]))
+                1)
+           )}
+  [state player-id card]
+  (cond (= (:name card) "Devour Mind")
+        (let [player-change-fn {"p1" "p2"
+                                "p2" "p1"}]
+          (->> (get-in state [:players (player-change-fn player-id) :deck])
+               (take-n-random 1234 3)
+               (second)
+               (map :name)
+               (add-cards-to-hand state player-id)))
+
+        (= (:name card) "Battle Rage")
+        (let [damaged (count-damaged-minions state player-id)]
+          (loop [damaged damaged
+                 state state]
+            (if (zero? damaged)
+              state
+              (recur (dec damaged)
+                     (if (take-fatigue? state player-id)
+                       (get-fatigue state player-id)
+                       (draw-card state player-id))))))
+
+        :else
+        (error "Not a valid spell")))
+
+(defn draw-first-minion
+  "Draws the first minion in the deck"
+  {:test (fn []
+           (is= (-> (create-game [{:deck [(create-card "Battle Rage") (create-card "Boulderfist Ogre") (create-card "Battle Rage")]}])
+                    (draw-first-minion "p1")
+                    (get-in [:players "p1" :hand])
+                    (first)
+                    (:name))
+                "Boulderfist Ogre")
+           (is= (-> (create-game [{:deck [(create-card "Battle Rage") (create-card "Battle Rage")]}])
+                    (draw-first-minion "p1")
+                    (get-in [:players "p1" :hand])
+                    (first))
+                nil))}
+  [state player-id]
+  (let [first-minion (as-> (get-deck state player-id) $
+                  (filter (fn [x] (= (:type x) :minion)) $)
+                  (first $))]
+    (if first-minion
+      (if (< (-> (count (get-in state [:players player-id :hand])))
+             10)
+        (as-> (filter (fn [x] (not= (:id x) (:id first-minion))) (get-deck state player-id)) $
+          (update-in state [:players player-id :deck] (constantly $))
+          (update-in $ [:players player-id :hand] conj first-minion))
+        (as-> (filter (fn [x] (not= (:id x) (:id first-minion))) (get-deck state player-id)) $
+          (update-in state [:players player-id :deck] (constantly $))))
+      state)))
+
+
+(defn combo
+  "Triggers the combo"
+  {:test (fn []
+           (is= (as-> (create-game []) $
+                    (place-card-board $ "p1" (create-card "Boulderfist Ogre") 0)
+                    (place-card-board $ "p1" (create-card "Shado-Pan Rider") 0)
+                    (combo $ "p1" (create-card "Shado-Pan Rider"))
+                    (let [state $]
+                      (-> (get-minion state (:id (get-latest-minion state)))
+                          (:attack))))
+                6)
+           (is= (-> (create-game [{:deck [(create-card "Boulderfist Ogre")]}])
+                    (place-card-board "p1" (create-card "Boulderfist Ogre") 0)
+                    (place-card-board "p1" (create-card "Shado-Pan Rider") 0)
+                    (combo "p1" (create-card "Elven Minstrel"))
+                    (get-in [:players "p1" :hand])
+                    (first)
+                    (:name))
+                "Boulderfist Ogre")
+           (is= (as-> (create-game [{:deck [(create-card "Boulderfist Ogre") (create-card "Alexstrasza")]}]) $
+                  (place-card-board $ "p1" (create-card "Boulderfist Ogre") 0)
+                  (place-card-board $ "p1" (create-card "Shado-Pan Rider") 0)
+                  (combo $ "p1" (create-card "Elven Minstrel"))
+                  (get-in $ [:players "p1" :hand])
+                  (map :name $))
+                ["Boulderfist Ogre" "Alexstrasza"])
+           )}
+  [state player-id card]
+  {:pre [(map? state) (string? player-id) (map? card)]}
+  (if (>= 1 (count (get state :minion-ids-summoned-this-turn)))
+    state
+    (cond (= (:name card) "Elven Minstrel")
+          (-> (draw-first-minion state player-id)
+              (draw-first-minion player-id))
+
+          (= (:name card) "Shado-Pan Rider")
+          (update-minion state (:id (get-latest-minion state)) :attack (+ 3 (get-attack state (:id (get-latest-minion state)))))
+          
           :else
           state)))

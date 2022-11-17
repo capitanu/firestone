@@ -838,3 +838,15 @@
   [state player-id]
   (update-in state [:players player-id :hero :hero-power-used] (constantly true)))
 
+
+(defn count-damaged-minions
+  "Returns the number of damaged minions for a player"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre" :damage-taken 3) (create-minion "Boulderfist Ogre" :damage-taken 2)]}])
+                    (count-damaged-minions "p1"))
+                2))}
+  [state player-id]
+  (->> (get-in state [:players "p1" :minions])
+       (filter (fn [x] (not= (:damage-taken x) 0)))
+       (count)))
+

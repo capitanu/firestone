@@ -67,7 +67,7 @@
     :set       :classic
     :rarity    :legendary}
 
-   ;; TODO
+   ;; Implemented
    "Cairne Bloodhoof"
    {:name        "Cairne Bloodhoof"
     :attack      4
@@ -78,7 +78,7 @@
     :rarity      :legendary
     :description "Deathrattle: Summon a 4/5 Baine Bloodhoof."}
 
-   ;; TODO
+   ;; Implemented
    "Elven Minstrel"
    {:name        "Elven Minstrel"
     :attack      3
@@ -90,7 +90,7 @@
     :set         :kobolds-and-catacombs
     :description "Combo: Draw 2 minions from your deck."}
 
-   ;; TODO
+   ;; Implemented
    "Shado-Pan Rider"
    {:name        "Shado-Pan Rider"
     :attack      3
@@ -159,7 +159,7 @@
     :rarity      :common
     :description "Deathrattle: Draw a card."}
 
-   ;; TODO
+   ;; Implemented
    "Battle Rage"
    {:name         "Battle Rage"
     :mana-cost    2
@@ -204,7 +204,7 @@
     :set                :mean-streets-of-gadgetzan
     :description        "Whenever you summon a minion deal 5 damage to your Hero."}
 
-   ;; TODO
+   ;; Implemented
    "Devour Mind"
    {:name         "Devour Mind"
     :mana-cost    5
