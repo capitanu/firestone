@@ -601,40 +601,6 @@
        (<= (get-hero-power-cost (get-hero-by-player-id state player-id))
            (get-mana state player-id))))
 
-(defn use-hero-power
-  "Uses the hero power of the current"
-  {:test (fn []
-           (is= (-> (create-game [{} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
-                    (use-hero-power "p1" "shr")
-                    (get-minions "p1"))
-                [])
-           )}
-  [state player-id & target-id]
-  (let [hero-power (get-hero-power (get-hero-by-player-id state player-id))]
-    (cond (= (:name hero-power)
-             "Fireblast")
-          (let [tg-id (first target-id) type (get-entity-type state tg-id)]
-            (cond (= type :minion)
-                  (as-> (update-minion state tg-id :damage-taken (+ 1 (get-damage-taken state tg-id))) $
-                    (let [st $]
-                      (if (remove-minion? st tg-id)
-                        (remove-minion st tg-id)
-                        st)))
-                  
-                  (= type :hero)
-                  (update-hero state tg-id :damage-taken (+ 1 (get-damage-taken state tg-id)))
-
-                  :else
-                  (error "Type of the target is unrecognized")))
-
-          (= (:name hero-power)
-             "Ballista Shot")
-          (let [player-change-fn {"p1" "p2"
-                                  "p2" "p1"}]
-            (update-hero state (:id (get-hero-by-player-id state (player-change-fn player-id))) :damage-taken (+ 2 (get-damage-taken state (:id (get-hero-by-player-id state (player-change-fn player-id)))))))
-
-          :else
-          state)))
 
 (defn deathrattle-cairne-bloodhoof
   "Peforms the deathrattle of Cairne Bloodhoof"
@@ -848,5 +814,40 @@
           (= (:name card) "Shado-Pan Rider")
           (update-minion state (:id (get-latest-minion state)) :attack (+ 3 (get-attack state (:id (get-latest-minion state)))))
           
+          :else
+          state)))
+
+(defn use-hero-power
+  "Uses the hero power of the current"
+  {:test (fn []
+           (is= (-> (create-game [{} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (use-hero-power "p1" "shr")
+                    (get-minions "p1"))
+                [])
+           )}
+  [state player-id & target-id]
+  (let [hero-power (get-hero-power (get-hero-by-player-id state player-id))]
+    (cond (= (:name hero-power)
+             "Fireblast")
+          (let [tg-id (first target-id) type (get-entity-type state tg-id)]
+            (cond (= type :minion)
+                  (as-> (update-minion state tg-id :damage-taken (+ 1 (get-damage-taken state tg-id))) $
+                    (let [st $]
+                      (if (remove-minion? st tg-id)
+                        (remove-minion st tg-id)
+                        st)))
+                  
+                  (= type :hero)
+                  (update-hero state tg-id :damage-taken (+ 1 (get-damage-taken state tg-id)))
+
+                  :else
+                  (error "Type of the target is unrecognized")))
+
+          (= (:name hero-power)
+             "Ballista Shot")
+          (let [player-change-fn {"p1" "p2"
+                                  "p2" "p1"}]
+            (update-hero state (:id (get-hero-by-player-id state (player-change-fn player-id))) :damage-taken (+ 2 (get-damage-taken state (:id (get-hero-by-player-id state (player-change-fn player-id)))))))
+
           :else
           state)))

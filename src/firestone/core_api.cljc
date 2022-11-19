@@ -25,6 +25,7 @@
                                          update-hero
                                          update-minion]]
             [firestone.core :refer [battlecry
+                                    combo
                                     draw-card
                                     get-character
                                     get-damage-taken
@@ -193,7 +194,7 @@
                 (remove-card-hand player-id card)
                 (place-card-board player-id card position)
                 (battlecry player-id card :target-id target-id)
-                (combo palyer-id card))
+                (combo player-id card))
             (error "Not a valid minion to play"))
 
           (= (:type card) :spell)
