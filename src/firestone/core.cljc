@@ -125,6 +125,26 @@
   [state id]
   (seq-contains? (:minion-ids-summoned-this-turn state) id))
 
+(defn stealth?
+  "Returns true if the minion is stealthy"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Moroes" :id "m")]}])
+                    (stealth? "m"))
+                true))}
+  [state id]
+  (-> (get-minion state id)
+      (:stealth)))
+
+(defn unstealth-minion
+  "Removes the stealth mark of a minion"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Moroes" :id "m")]}])
+                    (unstealth-minion "m")
+                    (stealth? "m"))
+                nil))}
+  [state id]
+  (update-minion state id :stealth nil))
+
 (defn valid-attack?
   "Checks if the attack is valid"
   {:test (fn []
@@ -159,6 +179,7 @@
     (and attacker
          target
          (= (:player-id-in-turn state) player-id)
+         (not= (stealth? state target-id) true)
          (< (:attacks-performed-this-turn attacker) 1)
          (not (sleepy? state attacker-id))
          (not= (:owner-id target) (:player-id-in-turn state))

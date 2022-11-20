@@ -189,6 +189,7 @@
     :type        :minion
     :set         :one-night-in-karazhan
     :rarity      :legendary
+    :stealth     true
     :description "Stealth. At the end of your turn, summon a 1/1 Steward."}
 
    ;; TODO

@@ -45,10 +45,14 @@
         card {:name        name
               :type        (:type definition)
               :entity-type :card}]
-    (if (empty? kvs)
-      card
-      (apply assoc card kvs))))
-
+    (as-> (if (:stealth definition)
+          (apply assoc card [:stealth (:stealth definition)])
+          card) $
+      (let [c $]
+        (if (empty? kvs)
+          c
+          (apply assoc c kvs))))))
+    
 
 (defn create-minion
   "Creates a minion from its definition by the given minion name. The additional key-values will override the default values."
@@ -71,10 +75,13 @@
                 :health                      (:health definition)
                 :name                        name
                 :attacks-performed-this-turn 0}]
-    (if (empty? kvs)
-      minion
-      (apply assoc minion kvs))))
-
+    (as-> (if (:stealth definition)
+            (apply assoc minion [:stealth (:stealth definition)])
+            minion) $
+      (let [m $]
+        (if (empty? kvs)
+          m
+          (apply assoc m kvs))))))
 
 (defn create-empty-state
   "Creates an empty state with the given heroes."
@@ -773,15 +780,19 @@
            (is= (-> (card->minion (create-card "Boulderfist Ogre"))
                     (:damage-taken))
                 0)
+           (is= (-> (card->minion (create-card "Moroes"))
+                    (:stealth))
+                true)
            (is= (-> (card->minion (create-card "Boulderfist Ogre"))
                     (:entity-type))
                 :minion))}
   [card]
   {:pre [(map? card)]}
-  (-> (get-definition (:name card))
-      (:name)
-      (create-minion)))
-
+  (as-> (get-definition (:name card)) $
+    (let [card-def $ stealth (:stealth card-def) name (:name card-def)]
+      (if stealth
+        (create-minion name :stealth stealth)
+        (create-minion name)))))
 
 (defn get-minion-owner
   "Returns the owner id"

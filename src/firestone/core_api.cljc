@@ -41,14 +41,15 @@
                                     remove-minion
                                     remove-minion?
                                     remove-sleeping-minions
+                                    stealth?
                                     sleepy?
                                     set-minion-attacked
                                     use-hero-power
+                                    unstealth-minion
                                     valid-attack?
                                     valid-hero-power-use?
                                     valid-play-minion?
                                     valid-play-spell?]]))
-
 
 
 (defn end-turn
@@ -117,6 +118,19 @@
                     (attack "p1" "bo" "h2")
                     (get-in [:players "p2" :hero :damage-taken]))
                 6)
+           (is= (-> (create-game [{:minions [(create-minion "Moroes" :id "m")]}])
+                    (attack "p1" "m" "h2")
+                    (stealth? "m"))
+                nil)
+           (error? (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo")]} {:minions [(create-minion "Moroes" :id "m")]}])
+                    (attack "p1" "bo" "m")
+                    (stealth? "m")))
+           (is= (-> (create-game [{:minions [(create-minion "Moroes" :id "m1")]} {:hero (create-hero "Rexxar" :id "r") :minions [(create-minion "Moroes" :id "m2")]}])
+                    (attack "p1" "m1" "r")
+                    (end-turn "p1")
+                    (attack "p2" "m2" "m1")
+                    (get-minions))
+                [])
            (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr")]
                                    :hero (create-hero "Rexxar" :id "r")}
                                   {:minions [(create-minion "Injured Blademaster" :id "ib")]
@@ -138,6 +152,10 @@
             (as-> (update-minion state target-id :damage-taken (+ (get-attack state attacker-id) (get-damage-taken state target-id))) $
               (update-minion $ attacker-id :damage-taken (+ (get-attack state target-id) (get-damage-taken state attacker-id)))
               (let [st $]
+                (if (stealth? st attacker-id)
+                  (unstealth-minion st attacker-id)
+                  st))
+              (let [st $]
                 (if (remove-minion? st attacker-id)
                   (remove-minion st attacker-id)
                   st))
@@ -148,8 +166,12 @@
               (set-minion-attacked $ attacker-id))
             
             (= type :hero)
-            (-> (update-hero state target-id :damage-taken (+ (get-attack state attacker-id) (get-damage-taken state target-id)))
-                (set-minion-attacked attacker-id))
+            (as-> (update-hero state target-id :damage-taken (+ (get-attack state attacker-id) (get-damage-taken state target-id))) $
+                (set-minion-attacked $ attacker-id)
+                (let [st $]
+                  (if (stealth? st attacker-id)
+                    (unstealth-minion st attacker-id)
+                    st)))
 
             :else
             (error "Type of the card is unrecognized")))
@@ -215,6 +237,10 @@
   {:test (fn []
            (is= (-> (create-game [{:hero "Jaina Proudmoore"} {:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
                     (hero-power "p1" "shr")
+                    (get-minions))
+                [])
+           (is= (-> (create-game [{:hero "Jaina Proudmoore" :minions [(create-minion "Moroes" :id "m")]}])
+                    (hero-power "p1" "m")
                     (get-minions))
                 [])
            (is= (-> (create-game [{:hero "Rexxar"} {:hero (create-hero "Jaina Proudmoore" :id "jp")}])
