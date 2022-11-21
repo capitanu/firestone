@@ -392,6 +392,14 @@
                     (get-in $ [:players "p1" :minions])
                     (map :name $)))
                 ["Boulderfist Ogre" "Boulderfist Ogre" "Nightblade"])
+           (is= (let [card1 (create-card "Moroes" :id "m1")
+                      card2 (create-card "Moroes" :id "m2")]
+                  (-> (create-game [{:hand [card1 card2]}])
+                      (place-card-board "p1" card1 0)
+                      (place-card-board "p1" card2 0)
+                      (get-in [:players "p1" :end-effect-minions])
+                      (count)))
+                2)
            (is= (let [card (create-card "Moroes" :id "m")]
              (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
                    (place-card-board $ "p1" card 0)
@@ -412,7 +420,7 @@
             (as-> (update-in state-temp [:minion-ids-summoned-this-turn] (constantly (conj (get state-temp :minion-ids-summoned-this-turn) minion-id))) x
                   (let [st x]
                     (if (:end-effect minion)
-                      (update-in st [:players player-id :end-effect-minions] (constantly (conj (get st [:players player-id :end-effect-minions]) minion-id)))
+                      (update-in st [:players player-id :end-effect-minions] (constantly (conj (get-in st [:players player-id :end-effect-minions]) minion-id)))
                       st)))))))))
 
 

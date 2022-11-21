@@ -197,6 +197,13 @@
                     (get-minions "p1")
                     (count))
                 2)
+           (is= (-> (create-game [{:hand [(create-card "Moroes" :id "m1") (create-card "Moroes" :id "m2")]}])
+                    (play-card "p1" "m1" :position 0)
+                    (play-card "p1" "m2" :position 0)
+                    (end-turn "p1")
+                    (get-minions "p1")
+                    (count))
+                4)
            (is= (as-> (create-game [{:hand [(create-card "Moroes" :id "m")]} {:minions [(create-minion "Boulderfist Ogre" :id "bo")]}]) $
                       (play-card $ "p1" "m" :position 0)
                       (end-turn $ "p1")
