@@ -1,5 +1,6 @@
 (ns firestone.construct
   (:require [ysera.test :refer [is is-not is= error?]]
+            [ysera.random :refer [random-nth]]
             [firestone.definitions :refer [get-definition]]))
 
 
@@ -46,13 +47,15 @@
               :type        (:type definition)
               :entity-type :card}]
     (as-> (if (:stealth definition)
-          (apply assoc card [:stealth (:stealth definition)])
-          card) $
-      (let [c $]
-        (if (empty? kvs)
-          c
-          (apply assoc c kvs))))))
-    
+            (apply assoc card [:stealth (:stealth definition)])
+            card) $
+          (if (:end-effect definition)
+            (apply assoc $ [:end-effect (:end-effect definition)])
+            $)
+          (let [c $]
+            (if (empty? kvs)
+              c
+              (apply assoc c kvs))))))
 
 (defn create-minion
   "Creates a minion from its definition by the given minion name. The additional key-values will override the default values."
@@ -78,10 +81,13 @@
     (as-> (if (:stealth definition)
             (apply assoc minion [:stealth (:stealth definition)])
             minion) $
-      (let [m $]
-        (if (empty? kvs)
-          m
-          (apply assoc m kvs))))))
+          (if (:end-effect definition)
+            (apply assoc $ [:end-effect (:end-effect definition)])
+            $)
+          (let [m $]
+            (if (empty? kvs)
+              m
+              (apply assoc m kvs))))))
 
 (defn create-empty-state
   "Creates an empty state with the given heroes."
@@ -96,6 +102,7 @@
                 {:player-id-in-turn             "p1"
                  :players                       {"p1" {:id       "p1"
                                                        :deck     []
+                                                       :end-effect-minions []
                                                        :hand     []
                                                        :minions  []
                                                        :hero     {:name         "Jaina Proudmoore"
@@ -109,6 +116,7 @@
                                                        :max-mana 10}
                                                  "p2" {:id       "p2"
                                                        :deck     []
+                                                       :end-effect-minions []
                                                        :hand     []
                                                        :minions  []
                                                        :hero     {:name         "Rexxar"
@@ -136,6 +144,7 @@
                                                          {:id      (str "p" (inc index))
                                                           :deck    []
                                                           :hand    []
+                                                          :end-effect-minions []
                                                           :minions []
                                                           :hero    (if (contains? hero :id)
                                                                      hero
@@ -432,6 +441,7 @@
                              :player-id-in-turn "p2")
                 {:player-id-in-turn             "p2"
                  :players                       {"p1" {:id      "p1"
+                                                       :end-effect-minions []
                                                        :deck    [{:entity-type :card
                                                                   :id          "c3"
                                                                   :name        "Silver Hand Recruit"
@@ -462,6 +472,7 @@
                                                        :mana     10
                                                        :max-mana 10}
                                                  "p2" {:id       "p2"
+                                                       :end-effect-minions []
                                                        :deck     []
                                                        :hand     []
                                                        :minions  []
@@ -848,6 +859,40 @@
                 true))}
   [state player-id]
   (update-in state [:players player-id :hero :hero-power-used] (constantly true)))
+
+(defn increase-health
+  "Increases health of a given minion by a given amount"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre" :id "bo" :health 5)]}])
+                    (increase-health "p1" "bo" 5)
+                    (get-minions "p1")
+                    (first)
+                    (:health))
+                10))}
+  [state player-id minion-id amount]
+  (update-in state [:players player-id :minions]
+             (fn [minions]
+               (map (fn [minion]
+                      (if (= (:id minion)
+                             minion-id)
+                        (assoc minion :health (+ (:health minion) amount))
+                        minion))
+                    minions))))
+
+(defn get-random-minion-excluding-caller
+  "Gets a random minion that is not the calling minion"
+  {:test (fn []
+  (is= (-> (create-game [{:minions [(create-minion "Young Priestess" :id "yp")
+                                    (create-minion "Silver Hand Recruit" :id "shr")]}])
+           (get-random-minion-excluding-caller "yp")
+           (:id))
+       "shr"))}
+  [state minion-id]
+  {:pre [(map? state) (string? minion-id)]}
+  (->> (get-minions state )
+       (filter (fn [x] (not= (:id x) minion-id)))
+       (random-nth 1234)
+       (second)))
 
 
 (defn count-damaged-minions

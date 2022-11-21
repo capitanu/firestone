@@ -178,6 +178,7 @@
     :type        :minion
     :set         :classic
     :rarity      :rare
+    :end-effect  :true
     :description "At the end of your turn give another random friendly minion +1 Health."}
 
    ;; TODO
@@ -189,8 +190,18 @@
     :type        :minion
     :set         :one-night-in-karazhan
     :rarity      :legendary
+    :end-effect  :true
     :stealth     true
     :description "Stealth. At the end of your turn, summon a 1/1 Steward."}
+
+   "Steward"
+   {:name          "Steward"
+    :attack        1
+    :health        1
+    :mana-cost     1
+    :type          :minion
+    :set           :one-night-in-karazhan}
+
 
    ;; TODO
    "Unlicensed Apothecary"

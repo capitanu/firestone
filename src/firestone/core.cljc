@@ -30,6 +30,9 @@
                                          get-minion
                                          get-minions
                                          get-player
+                                         get-player-id-in-turn
+                                         get-random-minion-excluding-caller
+                                         increase-health
                                          update-minion
                                          update-hero
                                          update-player-mana]]))
@@ -388,7 +391,12 @@
                     (place-card-board $ "p1" card 0)
                     (get-in $ [:players "p1" :minions])
                     (map :name $)))
-                ["Boulderfist Ogre" "Boulderfist Ogre" "Nightblade"]))}
+                ["Boulderfist Ogre" "Boulderfist Ogre" "Nightblade"])
+           (is= (let [card (create-card "Moroes" :id "m")]
+             (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
+                   (place-card-board $ "p1" card 0)
+                   (get-in $ [:players "p1" :end-effect-minions])))
+                ["m5"]))}
   [state player-id card position]
   {:pre [(map? state) (string? player-id) (map? card) (int? position)]}
   (let [minion (card->minion card)]
@@ -401,7 +409,12 @@
                                minions)
                               (first)
                               (:id))]
-            (update-in state-temp [:minion-ids-summoned-this-turn] (constantly (conj (get state-temp :minion-ids-summoned-this-turn) minion-id)))))))))
+            (as-> (update-in state-temp [:minion-ids-summoned-this-turn] (constantly (conj (get state-temp :minion-ids-summoned-this-turn) minion-id))) x
+                  (let [st x]
+                    (if (:end-effect minion)
+                      (update-in st [:players player-id :end-effect-minions] (constantly (conj (get st [:players player-id :end-effect-minions]) minion-id)))
+                      st)))))))))
+
 
 (defn get-latest-minion
   "Gets the last minion played on the board"
@@ -481,7 +494,7 @@
       (update-in [:players target-id :hero :health] (constantly 15))))
 
 (defn battlecry-barnes
-  "Performs the battlecry for Alexstrasza"
+  "Performs the battlecry for barnes"
   {:test (fn []
            (is= (-> (create-game [{:deck [(create-card "Alexstrasza")] :minions [(create-minion "Barnes" :id "b")]}])
                     (battlecry-barnes "p1")
@@ -675,6 +688,36 @@
           :else
           state)))
 
+(defn end-of-turn-yp
+  "Increases the health of a random friendly minion by 1 that is not itself"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (end-of-turn-yp "p1" "yp")
+                    (get-minions "p1")
+                    (first)
+                    (:health))
+                2)
+           (is= (-> (create-game [{:minions [(create-minion "Young Priestess" :id "yp")]}])
+                    (end-of-turn-yp "p1" "yp")
+                    (get-minions "p1")
+                    (first)
+                    (:health))
+                1)
+           (is= (-> (create-game [{:minions [(create-minion "Young Priestess" :id "yp")
+                                             (create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (end-of-turn-yp "p1" "yp")
+                    (get-minion "shr")
+                    (:health))
+                2))}
+  [state player-id minion-id]
+  (let [minions (get-minions state player-id)
+        minion (get-random-minion-excluding-caller state minion-id)]
+    (if (and minion
+             (not= (:id minion)
+                   "yp"))
+      (increase-health state player-id (:id minion) 1)
+      state)))
+
 (defn remove-minion
   "Removes a minion from the table IF it has negative health"
   {:test (fn []
@@ -690,7 +733,9 @@
                       (:owner-id))]
     (as-> (into [] (filter (fn [x] (not= (:id x) minion-id)) (get-in state [:players player-id :minions]))) $
       (update-in state [:players player-id :minions] (constantly $))
-      (deathrattle $ player-id minion-id))))
+      (let [st $]
+        (-> (update-in st [:players player-id :end-effect-minions] (constantly (filter (fn [x] (not= minion-id x)) (get-in st [:players player-id :end-effect-minions]))))
+            (deathrattle player-id minion-id))))))
 
 
 (defn remove-sleeping-minions
@@ -857,7 +902,7 @@
                       (if (remove-minion? st tg-id)
                         (remove-minion st tg-id)
                         st)))
-                  
+
                   (= type :hero)
                   (update-hero state tg-id :damage-taken (+ 1 (get-damage-taken state tg-id)))
 
@@ -872,3 +917,50 @@
 
           :else
           state)))
+
+(defn end-effect
+  "Triggers one end effect"
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Moroes" :id "m")]}])
+                    (end-effect "m")
+                    (get-minions)
+                    (second)
+                    (:name))
+                "Steward")
+           (is= (-> (create-game [{:minions [(create-minion "Silver Hand Recruit" :id "shr")]}])
+                    (end-of-turn-yp "p1" "yp")
+                    (get-minions "p1")
+                    (first)
+                    (:health))
+                2))}
+  [state minion-id]
+  (cond (= (:name (get-minion state minion-id))
+           "Moroes")
+        (if (> 7 (count (get-in state [:player (get-player-id-in-turn state) :minions])))
+          (add-minion-to-board state (get-player-id-in-turn state) (create-minion "Steward") 7)
+          state)
+
+        (= (:name (get-minion state minion-id))
+           "Young Priestess")
+        (end-of-turn-yp state (get-in state [:players (get-player-id-in-turn state) :id] )minion-id)
+
+        :else
+        state))
+
+
+
+(defn trigger-end-turn-effects
+  "Triggers each end of turn effect one by one"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (place-card-board "p1" (create-card "Moroes") 0)
+                    (trigger-end-turn-effects "p1")
+                    (get-minions "p1")
+                    (count))
+                2))}
+  [state player-id]
+  (let [minions (get-in state [:players player-id :end-effect-minions])]
+    (reduce (fn [state minion-id]
+              (end-effect state minion-id))
+            state
+            minions)))
