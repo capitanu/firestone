@@ -33,6 +33,7 @@
                                          get-minion-names
                                          get-player
                                          get-player-id-in-turn
+
                                          get-random-minion-excluding-caller
                                          increase-health
                                          update-minion
@@ -484,27 +485,6 @@
                       (update-in y [:players player-id :reaction-effect-minions] (constantly (conj (get-in y [:players player-id :reaction-effect-minions]) minion-id)))
                       y)
                     )))))))))
-
-(let [card (create-card "Unlicensed Apothecary" :id "ua")]
-  (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
-        (place-card-board $ "p1" card 0)
-        (get-in $ [:players "p1" :reaction-effect-minions])))
-
-
-(let [card (create-card "Moroes" :id "m")]
-  (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
-        (place-card-board $ "p1" card 0)
-        (get-in $ [:players "p1" :end-effect-minions])))
-
-(let [card (create-card "Unlicensed Apothecary")]
-  (let [card2 (create-card "Unlicensed Apothecary")]
-    (let [card3 (create-card "Boulderfist Ogre" :id "bo")]
-    (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
-          (place-card-board $ "p1" card 0)
-          (place-card-board $ "p1" card2 1)
-          (place-card-board $ "p1" card3 2)
-          (get-health $ "h1")))))
-
 
 (defn get-latest-minion
   "Gets the last minion played on the board"
@@ -1029,11 +1009,9 @@
         (if (> 7 (count (get-in state [:player (get-player-id-in-turn state) :minions])))
           (add-minion-to-board state (get-player-id-in-turn state) (create-minion "Steward") 7)
           state)
-
         (= (:name (get-minion state minion-id))
            "Young Priestess")
         (end-of-turn-yp state (get-in state [:players (get-player-id-in-turn state) :id] )minion-id)
-
         :else
         state))
 
@@ -1052,4 +1030,3 @@
               (end-effect state minion-id))
             state
             minions)))
-

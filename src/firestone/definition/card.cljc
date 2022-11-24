@@ -168,7 +168,8 @@
     :set          :classic
     :rarity       :common
     :description  "Draw a card for each damaged friendly character."}
-
+  
+    ;; Implemented
    "Young Priestess"
    {:name        "Young Priestess"
     :attack      2
@@ -190,8 +191,10 @@
     :rarity      :legendary
     :end-effect  :true
     :stealth     true
+    :end-effect  true
     :description "Stealth. At the end of your turn, summon a 1/1 Steward."}
-
+   
+   ;; Implemented
    "Steward"
    {:name          "Steward"
     :attack        1
@@ -199,8 +202,8 @@
     :mana-cost     1
     :type          :minion
     :set           :one-night-in-karazhan}
-
-   ;; TODO
+   
+   ;; Implemented
    "Unlicensed Apothecary"
    {:name               "Unlicensed Apothecary"
     :attack             5
