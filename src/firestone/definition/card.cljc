@@ -169,7 +169,6 @@
     :rarity       :common
     :description  "Draw a card for each damaged friendly character."}
 
-   ;; TODO
    "Young Priestess"
    {:name        "Young Priestess"
     :attack      2
@@ -181,7 +180,6 @@
     :end-effect  :true
     :description "At the end of your turn give another random friendly minion +1 Health."}
 
-   ;; TODO
    "Moroes"
    {:name        "Moroes"
     :attack      1
@@ -202,7 +200,6 @@
     :type          :minion
     :set           :one-night-in-karazhan}
 
-
    ;; TODO
    "Unlicensed Apothecary"
    {:name               "Unlicensed Apothecary"
@@ -214,6 +211,7 @@
     :rarity             :epic
     :class              :warlock
     :set                :mean-streets-of-gadgetzan
+    :reaction-effect    :true
     :description        "Whenever you summon a minion deal 5 damage to your Hero."}
 
    ;; Implemented

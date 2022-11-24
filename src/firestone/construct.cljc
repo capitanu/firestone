@@ -52,6 +52,9 @@
           (if (:end-effect definition)
             (apply assoc $ [:end-effect (:end-effect definition)])
             $)
+          (if (:reaction-effect definition)
+            (apply assoc $ [:reaction-effect (:reaction-effect definition)])
+            $)
           (let [c $]
             (if (empty? kvs)
               c
@@ -84,6 +87,9 @@
           (if (:end-effect definition)
             (apply assoc $ [:end-effect (:end-effect definition)])
             $)
+          (if (:reaction-effect definition)
+            (apply assoc $ [:reaction-effect (:reaction-effect definition)])
+            $)
           (let [m $]
             (if (empty? kvs)
               m
@@ -103,6 +109,7 @@
                  :players                       {"p1" {:id       "p1"
                                                        :deck     []
                                                        :end-effect-minions []
+                                                       :reaction-effect-minions []
                                                        :hand     []
                                                        :minions  []
                                                        :hero     {:name         "Jaina Proudmoore"
@@ -117,6 +124,7 @@
                                                  "p2" {:id       "p2"
                                                        :deck     []
                                                        :end-effect-minions []
+                                                       :reaction-effect-minions []
                                                        :hand     []
                                                        :minions  []
                                                        :hero     {:name         "Rexxar"
@@ -145,6 +153,7 @@
                                                           :deck    []
                                                           :hand    []
                                                           :end-effect-minions []
+                                                          :reaction-effect-minions []
                                                           :minions []
                                                           :hero    (if (contains? hero :id)
                                                                      hero
@@ -201,6 +210,25 @@
         (map :minions)
         (apply concat))))
 
+(defn get-minion-names
+  "Gets the names of the minions on the board for the given player-id or for both players."
+  {:test (fn []
+           (is= (-> (create-empty-state)
+                    (get-minion-names "p1"))
+                [])
+           (is= (-> (create-empty-state)
+                    (get-minion-names))
+                [])
+           (is= (as-> (create-empty-state) $
+                  (assoc-in $ [:players "p1" :minions] [(create-minion "Nightblade")])
+                  (get-minion-names $ "p1"))
+                ["Nightblade"]))}
+  ([state player-id]
+   (->> (get-minions state player-id)
+        (map :name)))
+  ([state]
+   (->> (get-minions state)
+        (map :name))))
 
 (defn get-deck
   {:test (fn []
@@ -421,8 +449,18 @@
     (update-in state [:players player-id :fatigue] (constantly fatigue))
     state))
 
+(defn update-reaction-effect-minions
+  "Updates the collection reaction-effect-minions"
+  {:test (fn []
+           (is= (as-> (create-empty-state) $
+                  (update-reaction-effect-minions $ "p1" ["Nightblade" "Silver Hand Recruit"])
+                  (get-player $ "p1")
+                  (:reaction-effect-minions $))
+                ["Nightblade" "Silver Hand Recruit"]))}
+  [state player-id minions]
+  (update-in state [:players player-id :reaction-effect-minions] (constantly minions)))
+
 (defn create-game
-  
   "Creates a game with the given deck, hand, minions (placed on the board), and heroes."
   {:test (fn []
            (is= (create-game) (create-empty-state))
@@ -442,6 +480,7 @@
                 {:player-id-in-turn             "p2"
                  :players                       {"p1" {:id      "p1"
                                                        :end-effect-minions []
+                                                       :reaction-effect-minions []
                                                        :deck    [{:entity-type :card
                                                                   :id          "c3"
                                                                   :name        "Silver Hand Recruit"
@@ -473,6 +512,7 @@
                                                        :max-mana 10}
                                                  "p2" {:id       "p2"
                                                        :end-effect-minions []
+                                                       :reaction-effect-minions []
                                                        :deck     []
                                                        :hand     []
                                                        :minions  []
@@ -879,6 +919,21 @@
                         minion))
                     minions))))
 
+(defn damage-hero
+  "Damages the hero of the given player."
+  {:test (fn []
+           (is= (-> (create-game [{:hero (create-hero "Rexxar" :id "h1")}])
+                    (damage-hero "p1" 1)
+                    (get-in [:players "p1" :hero :damage-taken]))
+                1)
+           (is= (-> (create-game [{:hero (create-hero "Rexxar" :id "h1")}])
+                    (damage-hero "p1" 30)
+                    (get-in [:players "p1" :hero :damage-taken]))
+                30))}
+  [state player-id damage]
+  (update-hero state (get-in state [:players player-id :hero :id]) :damage-taken (+ damage (get-in state [:players player-id :hero :damage-taken]))))
+
+
 (defn get-random-minion-excluding-caller
   "Gets a random minion that is not the calling minion"
   {:test (fn []
@@ -905,4 +960,3 @@
   (->> (get-in state [:players "p1" :minions])
        (filter (fn [x] (not= (:damage-taken x) 0)))
        (count)))
-
