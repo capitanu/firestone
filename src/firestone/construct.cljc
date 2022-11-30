@@ -933,7 +933,6 @@
   [state player-id damage]
   (update-hero state (get-in state [:players player-id :hero :id]) :damage-taken (+ damage (get-in state [:players player-id :hero :damage-taken]))))
 
-
 (defn get-random-minion-excluding-caller
   "Gets a random minion that is not the calling minion"
   {:test (fn []
@@ -944,11 +943,10 @@
        "shr"))}
   [state minion-id]
   {:pre [(map? state) (string? minion-id)]}
-  (->> (get-minions state )
+  (->> (get-minions state)
        (filter (fn [x] (not= (:id x) minion-id)))
        (random-nth 1234)
        (second)))
-
 
 (defn count-damaged-minions
   "Returns the number of damaged minions for a player"

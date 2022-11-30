@@ -1,6 +1,20 @@
 (ns firestone.definition.card
   (:require [firestone.definitions :refer [add-definitions!]]
-            [firestone.core :refer []]))
+            [firestone.construct :refer [get-minion
+                                         get-deck
+                                         add-card-to-deck
+                                         create-card
+                                         create-minion
+                                         get-fatigue
+                                         add-minion-to-board
+                                         update-minion]]
+            [ysera.random :refer [random-nth
+                                  shuffle-with-seed
+                                  get-random-int]]
+            [firestone.core :refer [get-latest-minion
+                                    take-fatigue?
+                                    place-card-board
+                                    draw-card]]))
 
 (def card-definitions
   {
@@ -15,7 +29,11 @@
     :set         :goblins-vs-gnomes
     :race        :mech
     :rarity      :common
-    :description "Battlecry: Restore 8 Health to your hero."}
+    :description "Battlecry: Restore 8 Health to your hero."
+    :battlecry (fn [state & {player-id :player-id}]
+                 (update-in state [:players player-id :hero :damage-taken]
+                            (constantly (max 0
+                                             (- (get-in state [:players player-id :hero :damage-taken]) 8)))))}
 
    ;; Implemented
    "Boulderfist Ogre"
@@ -35,7 +53,10 @@
     :type        :minion
     :set         :classic
     :rarity      :rare
-    :description "Battlecry: Deal 4 damage to HIMSELF."}
+    :description "Battlecry: Deal 4 damage to HIMSELF."
+    :battlecry   (fn [state & {}]
+                   (let [minion-id (:id (get-latest-minion state))]
+                     (update-minion state minion-id :damage-taken 4)))}
 
    ;; Implemented
    "Nightblade"
@@ -45,7 +66,14 @@
     :mana-cost   5
     :type        :minion
     :set         :basic
-    :description "Battlecry: Deal 3 damage to the enemy hero."}
+    :description "Battlecry: Deal 3 damage to the enemy hero."
+    :battlecry   (fn [state & {player-id :player-id}]
+                   (let [player-change-fn {"p1" "p2"
+                                           "p2" "p1"}]
+                     (let [opponent-id (player-change-fn player-id)]
+                       (update-in state [:players opponent-id :hero :damage-taken]
+                                  (constantly (+ (get-in state [:players opponent-id :hero :damage-taken])
+                                                 3))))))}
 
    ;; Implemented
    "Silver Hand Recruit"
@@ -76,7 +104,9 @@
     :type        :minion
     :set         :classic
     :rarity      :legendary
-    :description "Deathrattle: Summon a 4/5 Baine Bloodhoof."}
+    :description "Deathrattle: Summon a 4/5 Baine Bloodhoof."
+    :deathrattle (fn [state & {player-id :player-id}]
+                   (place-card-board state player-id (create-card "Baine Bloodhoof") 7))}
 
    ;; Implemented
    "Elven Minstrel"
@@ -112,7 +142,10 @@
     :rarity       :legendary
     :set          :classic
     :race         :dragon
-    :description  "Battlecry: Set a hero's remaining Health to 15."}
+    :description  "Battlecry: Set a hero's remaining Health to 15."
+    :battlecry    (fn [state & {player-id :player-id target-id :target-id}]
+                    (-> (update-in state [:players target-id :hero :damage-taken] (constantly 0))
+                        (update-in [:players target-id :hero :health] (constantly 15))))}
 
    ;; Implemented
    "Faceless Manipulator"
@@ -123,7 +156,11 @@
     :set          :classic
     :rarity       :epic
     :type         :minion
-    :description  "Battlecry: Choose a minion and become a copy of it."}
+    :description  "Battlecry: Choose a minion and become a copy of it."
+    :battlecry    (fn [state & {player-id :player-id target-id :target-id}]
+                    (let [target-name (:name (get-minion state target-id))
+                          minion-id (:id (get-latest-minion state))]
+                      (reduce (fn [st kv] (update-minion st minion-id (first kv) (second kv))) state (select-keys (get-minion state target-id) [:name :damage-taken :health :attack :owner-id]))))}
 
    ;; Implemented
    "Barnes"
@@ -134,7 +171,15 @@
     :type        :minion
     :set         :one-night-in-karazhan
     :rarity      :legendary
-    :description "Battlecry: Summon a 1/1 copy of a random minion in your deck."}
+    :description "Battlecry: Summon a 1/1 copy of a random minion in your deck."
+    :battlecry   (fn [state & {player-id :player-id}]
+                   (if (< 7 (count (get-in state [:player player-id :minions])))
+                     state
+                     (as-> (filter (fn [x] (= (:type x) :minion)) (get-deck state player-id)) $
+                       (random-nth 1234 $)
+                       (second $)
+                       (:name $)
+                       (add-minion-to-board state player-id (create-minion $ :attack 1 :health 1) 7))))}
 
    ;; Implemented
    "Astral Tiger"
@@ -146,7 +191,15 @@
     :class       :druid
     :rarity      :epic
     :set         :kobolds-and-catacombs
-    :description "Deathrattle: Shuffle a copy of this minion into your deck."}
+    :description "Deathrattle: Shuffle a copy of this minion into your deck."
+    :deathrattle (fn [state & {player-id :player-id}]
+                   (if (zero? (count (get-deck state player-id)))
+                     (add-card-to-deck state player-id (create-card "Astral Tiger"))
+                     (let [[seed place] (get-random-int 1234 (count (get-deck state player-id)))]
+                       (as-> (add-card-to-deck state player-id (create-card "Astral Tiger")) $
+                         (let [st $
+                               [seed2 shuffled-deck] (shuffle-with-seed 1234 (get-deck st player-id))]
+                           (update-in st [:players player-id :deck] (constantly shuffled-deck)))))))}
 
    ;; Implemented
    "Loot Hoarder"
@@ -157,7 +210,11 @@
     :type        :minion
     :set         :classic
     :rarity      :common
-    :description "Deathrattle: Draw a card."}
+    :description "Deathrattle: Draw a card."
+    :deathrattle (fn [state & {player-id :player-id}]
+                   (if (take-fatigue? state player-id)
+                     (get-fatigue state player-id)
+                     (draw-card state player-id)))}
 
    ;; Implemented
    "Battle Rage"
@@ -189,7 +246,6 @@
     :type        :minion
     :set         :one-night-in-karazhan
     :rarity      :legendary
-    :end-effect  :true
     :stealth     true
     :end-effect  true
     :description "Stealth. At the end of your turn, summon a 1/1 Steward."}
@@ -230,3 +286,4 @@
    })
 
 (add-definitions! card-definitions)
+

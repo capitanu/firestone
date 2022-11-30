@@ -261,7 +261,7 @@
                                               (:mana-cost)))
                 (remove-card-hand player-id card)
                 (place-card-board player-id card position)
-                (battlecry player-id card :target-id target-id)
+                (battlecry card :player-id player-id :target-id target-id)
                 (combo player-id card))
             (error "Not a valid minion to play"))
 
