@@ -3,11 +3,13 @@
             [ysera.error :refer [error]]
             [firestone.definitions :refer [get-definition]]
             [firestone.construct :refer [create-game
+                                         draw-card
                                          get-card
                                          get-fatigue
                                          get-hand
                                          get-hero-by-player-id
                                          get-hero-power
+                                         get-latest-minion
                                          get-player-id-in-turn
                                          get-player
                                          get-minion
@@ -21,18 +23,16 @@
                                          reset-mana
                                          reset-hero-power
                                          set-hero-power
+                                         take-fatigue?
                                          update-hero
                                          update-minion]]
             [firestone.core :refer [battlecry
                                     combo
-                                    draw-card
                                     get-character
                                     get-damage-taken
                                     get-health
                                     get-attack
                                     get-entity-type
-                                    get-latest-minion
-                                    take-fatigue?
                                     pay-mana
                                     place-card-board
                                     play-spell

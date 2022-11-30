@@ -1,8 +1,8 @@
 (ns firestone.construct
   (:require [ysera.test :refer [is is-not is= error?]]
             [ysera.random :refer [random-nth]]
+            [ysera.error :refer [error]]
             [firestone.definitions :refer [get-definition]]))
-
 
 (defn create-hero
   "Creates a hero from its definition by the given hero name. The additional key-values will override the default values."
@@ -958,3 +958,74 @@
   (->> (get-in state [:players "p1" :minions])
        (filter (fn [x] (not= (:damage-taken x) 0)))
        (count)))
+
+(defn get-latest-minion
+  "Gets the last minion played on the board"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (add-minion-to-board "p1" (create-minion "Boulderfist Ogre") 0)
+                    (add-minion-to-board "p1" (create-minion "Injured Blademaster") 0)
+                    (get-latest-minion)
+                    (:name))
+                "Injured Blademaster"))}
+  [state]
+  {:pre [(map? state)]}
+  (let [all-minions (concat
+                     (get-in state [:players "p1" :minions])
+                     (get-in state [:players "p2" :minions]))]
+    (reduce (fn [x y]
+              (if (< (:added-to-board-time-id x)
+                     (:added-to-board-time-id y))
+                y
+                x))
+            (first all-minions)
+            all-minions)))
+
+(defn take-fatigue?
+  "Returns truethy or falsey, depending on whether or not the player should get fatigue"
+  {:test (fn []
+           (is= (-> (create-game)
+                    (take-fatigue? "p1"))
+                true)
+           (is= (-> (create-game)
+                    (add-cards-to-deck "p1" ["Nightblade"])
+                    (take-fatigue? "p1"))
+                nil))}
+  [state player-id]
+  (if (= (get-in state [:players player-id :deck]) [])
+    true
+    nil))
+
+(defn draw-card
+  "Picks up the first card in the deck and puts it in the hand"
+  {:test (fn []
+           (is= (as-> (create-game [{:deck ["Boulderfist Ogre"]}]) $
+                  (draw-card $ "p1")
+                  (get-hand $ "p1")
+                  (map :name $))
+                ["Boulderfist Ogre"])
+           (is= (as-> (create-game [{:deck ["Silver Hand Recruit"] :hand ["Boulderfist Ogre", "Boulderfist Ogre", "Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre"]}]) $
+                  (draw-card $ "p1")
+                  (get-hand $ "p1")
+                  (count $))
+                10)
+           (is= (as-> (create-game [{:deck ["Boulderfist Ogre", "Silver Hand Recruit"]}]) $
+                  (draw-card $ "p1")
+                  (draw-card $ "p1")
+                  (get-hand $ "p1")
+                  (map :name $))
+                ["Silver Hand Recruit", "Boulderfist Ogre"])
+           (error? (-> (create-game)
+                       (draw-card "p1"))))}
+  
+  [state player-id]
+  (if (= (get-in state [:players player-id :deck])
+         [])
+    (error "Player deck is empty"))
+  (if (< (-> (count (get-in state [:players player-id :hand])))
+         10)
+    (let [card (peek (get-in state [:players player-id :deck]))]
+      (-> (update-in state [:players player-id :deck] pop)
+          (update-in [:players player-id :hand] conj card)))
+    (let [card (peek (get-in state [:players player-id :deck]))]
+      (update-in state [:players player-id :deck] pop))))

@@ -3,18 +3,18 @@
             [firestone.construct :refer [get-minion
                                          get-deck
                                          add-card-to-deck
+                                         add-minion-to-board
+                                         draw-card
                                          create-card
                                          create-minion
                                          get-fatigue
+                                         get-latest-minion
                                          add-minion-to-board
+                                         take-fatigue?
                                          update-minion]]
             [ysera.random :refer [random-nth
                                   shuffle-with-seed
-                                  get-random-int]]
-            [firestone.core :refer [get-latest-minion
-                                    take-fatigue?
-                                    place-card-board
-                                    draw-card]]))
+                                  get-random-int]]))
 
 (def card-definitions
   {
@@ -106,7 +106,7 @@
     :rarity      :legendary
     :description "Deathrattle: Summon a 4/5 Baine Bloodhoof."
     :deathrattle (fn [state & {player-id :player-id}]
-                   (place-card-board state player-id (create-card "Baine Bloodhoof") 7))}
+                   (add-minion-to-board state player-id (create-card "Baine Bloodhoof") 7))}
 
    ;; Implemented
    "Elven Minstrel"

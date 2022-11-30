@@ -18,6 +18,7 @@
                                          create-minion
                                          count-damaged-minions
                                          damage-hero
+                                         draw-card
                                          get-card
                                          get-card-cost
                                          get-deck
@@ -27,6 +28,7 @@
                                          get-hero-power-cost
                                          get-hero-power
                                          get-heroes
+                                         get-latest-minion
                                          get-mana
                                          get-minion
                                          get-minions
@@ -34,6 +36,7 @@
                                          get-player
                                          get-player-id-in-turn
                                          get-random-minion-excluding-caller
+                                         take-fatigue?
                                          increase-health
                                          update-minion
                                          update-hero
@@ -190,55 +193,6 @@
          (not= (:owner-id target) (:player-id-in-turn state))
          (not= (:owner-id attacker) (:owner-id target)))))
 
-(defn take-fatigue?
-  "Returns truethy or falsey, depending on whether or not the player should get fatigue"
-  {:test (fn []
-           (is= (-> (create-game)
-                    (take-fatigue? "p1"))
-                true)
-           (is= (-> (create-game)
-                    (add-cards-to-deck "p1" ["Nightblade"])
-                    (take-fatigue? "p1"))
-                nil))}
-  [state player-id]
-  (if (= (get-in state [:players player-id :deck]) [])
-    true
-    nil))
-
-(defn draw-card
-  ;; TODO: Check if hand is full and destroy card if so
-  "Picks up the first card in the deck and puts it in the hand"
-  {:test (fn []
-           (is= (as-> (create-game [{:deck ["Boulderfist Ogre"]}]) $
-                  (draw-card $ "p1")
-                  (get-hand $ "p1")
-                  (map :name $))
-                ["Boulderfist Ogre"])
-           (is= (as-> (create-game [{:deck ["Silver Hand Recruit"] :hand ["Boulderfist Ogre", "Boulderfist Ogre", "Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre","Boulderfist Ogre"]}]) $
-                  (draw-card $ "p1")
-                  (get-hand $ "p1")
-                  (count $))
-                10)
-           (is= (as-> (create-game [{:deck ["Boulderfist Ogre", "Silver Hand Recruit"]}]) $
-                  (draw-card $ "p1")
-                  (draw-card $ "p1")
-                  (get-hand $ "p1")
-                  (map :name $))
-                ["Silver Hand Recruit", "Boulderfist Ogre"])
-           (error? (-> (create-game)
-                       (draw-card "p1"))))}
-  
-  [state player-id]
-  (if (= (get-in state [:players player-id :deck])
-         [])
-    (error "Player deck is empty"))
-  (if (< (-> (count (get-in state [:players player-id :hand])))
-         10)
-    (let [card (peek (get-in state [:players player-id :deck]))]
-      (-> (update-in state [:players player-id :deck] pop)
-          (update-in [:players player-id :hand] conj card)))
-    (let [card (peek (get-in state [:players player-id :deck]))]
-      (update-in state [:players player-id :deck] pop))))
 
 (defn reset-minions-attack
   "Resets all current player minion attacked to 0"
@@ -462,28 +416,6 @@
                       (update-in y [:players player-id :reaction-effect-minions] (constantly (conj (get-in y [:players player-id :reaction-effect-minions]) minion-id)))
                       y)
                     )))))))))
-
-(defn get-latest-minion
-  "Gets the last minion played on the board"
-  {:test (fn []
-           (is= (-> (create-game)
-                    (add-minion-to-board "p1" (create-minion "Boulderfist Ogre") 0)
-                    (add-minion-to-board "p1" (create-minion "Injured Blademaster") 0)
-                    (get-latest-minion)
-                    (:name))
-                "Injured Blademaster"))}
-  [state]
-  {:pre [(map? state)]}
-  (let [all-minions (concat
-                     (get-in state [:players "p1" :minions])
-                     (get-in state [:players "p2" :minions]))]
-    (reduce (fn [x y]
-              (if (< (:added-to-board-time-id x)
-                     (:added-to-board-time-id y))
-                y
-                x))
-            (first all-minions)
-            all-minions)))
 
 (defn battlecry
   "Makes the battle-cry happen"
