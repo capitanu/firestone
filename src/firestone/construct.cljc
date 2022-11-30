@@ -933,31 +933,46 @@
   [state player-id damage]
   (update-hero state (get-in state [:players player-id :hero :id]) :damage-taken (+ damage (get-in state [:players player-id :hero :damage-taken]))))
 
+
+(defn apply-random-fn
+  [state random-fn element]
+  (let [result (if (get state :seed)
+                 (random-fn (get state :seed) element)
+                 (random-fn 1234 element))]
+    [(update state :seed (constantly (first result))) (second result)]))
+
 (defn get-random-minion-excluding-caller
   "Gets a random minion that is not the calling minion"
   {:test (fn []
   (is= (-> (create-game [{:minions [(create-minion "Young Priestess" :id "yp")
                                     (create-minion "Silver Hand Recruit" :id "shr")]}])
-           (get-random-minion-excluding-caller "yp")
+           (get-random-minion-excluding-caller "yp" "p1")
+           (second)
            (:id))
        "shr"))}
-  [state minion-id]
+  [state minion-id player-id]
   {:pre [(map? state) (string? minion-id)]}
-  (->> (get-minions state)
+  (->> (get-minions state player-id)
        (filter (fn [x] (not= (:id x) minion-id)))
-       (random-nth 1234)
-       (second)))
+       (apply-random-fn state random-nth)))
 
-(defn count-damaged-minions
+(defn count-damaged-characters
   "Returns the number of damaged minions for a player"
   {:test (fn []
            (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre" :damage-taken 3) (create-minion "Boulderfist Ogre" :damage-taken 2)]}])
                     (count-damaged-minions "p1"))
-                2))}
+                2)
+           (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :damage-taken 3) :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre" :damage-taken 3) (create-minion "Boulderfist Ogre" :damage-taken 2)]}])
+                    (count-damaged-minions "p1"))
+                3))}
   [state player-id]
   (->> (get-in state [:players "p1" :minions])
        (filter (fn [x] (not= (:damage-taken x) 0)))
-       (count)))
+       (count)
+       (+ (if (not= (:damage-taken (get-hero-by-player-id state player-id))
+                    0)
+            1
+            0))))
 
 (defn get-latest-minion
   "Gets the last minion played on the board"

@@ -11,12 +11,13 @@
                                          add-card-to-deck
                                          add-cards-to-hand
                                          add-minion-to-board
+                                         apply-random-fn
                                          card->minion
                                          create-card
                                          create-game
                                          create-hero
                                          create-minion
-                                         count-damaged-minions
+                                         count-damaged-characters
                                          damage-hero
                                          draw-card
                                          get-card
@@ -585,12 +586,14 @@
                 2))}
   [state player-id minion-id]
   (let [minions (get-minions state player-id)
-        minion (get-random-minion-excluding-caller state minion-id)]
+        result (get-random-minion-excluding-caller state minion-id player-id)
+        st (first result)
+        minion (second result)]
     (if (and minion
              (not= (:id minion)
                    "yp"))
-      (increase-health state player-id (:id minion) 1)
-      state)))
+      (increase-health st player-id (:id minion) 1)
+      st)))
 
 (defn remove-minion
   "Removes a minion from the table IF it has negative health"
@@ -667,15 +670,18 @@
   [state player-id card]
   (cond (= (:name card) "Devour Mind")
         (let [player-change-fn {"p1" "p2"
-                                "p2" "p1"}]
-          (->> (get-in state [:players (player-change-fn player-id) :deck])
-               (take-n-random 1234 3)
-               (second)
-               (map :name)
-               (add-cards-to-hand state player-id)))
+                                "p2" "p1"}
+              deck (get-in state [:players (player-change-fn player-id) :deck])
+              seed (or (get state :seed) 1234)]
+          (as->
+              (take-n-random seed 3 deck) $
+            (let [result $]
+              (as-> (map :name (second result)) x
+                (add-cards-to-hand state player-id x)
+                (update x :seed (constantly (first result)))))))
 
         (= (:name card) "Battle Rage")
-        (let [damaged (count-damaged-minions state player-id)]
+        (let [damaged (count-damaged-characters state player-id)]
           (loop [damaged damaged
                  state state]
             (if (zero? damaged)
@@ -814,6 +820,7 @@
         (if (> 7 (count (get-in state [:player (get-player-id-in-turn state) :minions])))
           (add-minion-to-board state (get-player-id-in-turn state) (create-minion "Steward") 7)
           state)
+        
         (= (:name (get-minion state minion-id))
            "Young Priestess")
         (end-of-turn-yp state (get-in state [:players (get-player-id-in-turn state) :id] )minion-id)
@@ -835,3 +842,4 @@
               (end-effect state minion-id))
             state
             minions)))
+

@@ -175,11 +175,13 @@
     :battlecry   (fn [state & {player-id :player-id}]
                    (if (< 7 (count (get-in state [:player player-id :minions])))
                      state
-                     (as-> (filter (fn [x] (= (:type x) :minion)) (get-deck state player-id)) $
-                       (random-nth 1234 $)
-                       (second $)
-                       (:name $)
-                       (add-minion-to-board state player-id (create-minion $ :attack 1 :health 1) 7))))}
+                     (let [seed (or (get state :seed) 1234)
+                           minions (filter (fn [x] (= (:type x) :minion)) (get-deck state player-id))
+                           result (random-nth seed minions)
+                           new-seed (first result)
+                           minion (:name (second result))]
+                       (-> (add-minion-to-board state player-id (create-minion minion :attack 1 :health 1) 7)
+                           (update :seed (constantly new-seed))))))}
 
    ;; Implemented
    "Astral Tiger"
@@ -195,11 +197,12 @@
     :deathrattle (fn [state & {player-id :player-id}]
                    (if (zero? (count (get-deck state player-id)))
                      (add-card-to-deck state player-id (create-card "Astral Tiger"))
-                     (let [[seed place] (get-random-int 1234 (count (get-deck state player-id)))]
+                     (let [[seed place] (get-random-int (or (get state :seed) 1234) (count (get-deck state player-id)))]
                        (as-> (add-card-to-deck state player-id (create-card "Astral Tiger")) $
                          (let [st $
-                               [seed2 shuffled-deck] (shuffle-with-seed 1234 (get-deck st player-id))]
-                           (update-in st [:players player-id :deck] (constantly shuffled-deck)))))))}
+                               [seed2 shuffled-deck] (shuffle-with-seed seed (get-deck st player-id))]
+                           (-> (update-in st [:players player-id :deck] (constantly shuffled-deck))
+                               (update :seed (constantly seed2))))))))}
 
    ;; Implemented
    "Loot Hoarder"
