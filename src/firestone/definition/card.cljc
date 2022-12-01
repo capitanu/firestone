@@ -228,8 +228,8 @@
     :set          :classic
     :rarity       :common
     :description  "Draw a card for each damaged friendly character."}
-  
-    ;; Implemented
+
+   ;; Implemented
    "Young Priestess"
    {:name        "Young Priestess"
     :attack      2
@@ -241,6 +241,7 @@
     :end-effect  :true
     :description "At the end of your turn give another random friendly minion +1 Health."}
 
+   ;; Implemented
    "Moroes"
    {:name        "Moroes"
     :attack      1
@@ -261,7 +262,7 @@
     :mana-cost     1
     :type          :minion
     :set           :one-night-in-karazhan}
-   
+
    ;; Implemented
    "Unlicensed Apothecary"
    {:name               "Unlicensed Apothecary"
@@ -285,6 +286,98 @@
     :set          :knights-of-the-frozen-throne
     :rarity       :rare
     :description  "Copy 3 cards in your opponent's deck and add them to your hand."}
+
+
+   ;; TODO
+   "Dire Wolf Alpha"
+   {:name        "Dire Wolf Alpha"
+    :attack      2
+    :health      2
+    :mana-cost   2
+    :type        :minion
+    :rarity      :common
+    :set         :classic
+    :description "Adjacent minions have +1 Attack."}
+
+   ;; TODO
+   "Edwin VanCleef"
+   {:name        "Edwin VanCleef"
+    :attack      2
+    :health      2
+    :mana-cost   3
+    :type        :minion
+    :class       :rogue
+    :set         :classic
+    :rarity      :legendary
+    :description "Combo: Gain +2/+2 for each card played earlier this turn."}
+
+   ;; TODO
+   "Elixir of Hope"
+   {:name        "Elixir of Hope"
+    :mana-cost   3
+    :type        :spell
+    :class       :priest
+    :rarity      :common
+    :set         :kobolds-and-catacombs
+    :description "Give a minion +2/+2 and \"Deathrattle: Return this minion to your hand.\""}
+
+   ;; TODO
+   "Frothing Berserker"
+   {:name        "Frothing Berserker"
+    :attack      2
+    :health      4
+    :mana-cost   3
+    :type        :minion
+    :class       :warrior
+    :set         :classic
+    :rarity      :rare
+    :description "Whenever a minion takes damage, gain +1 Attack."}
+
+   ;; TODO
+   "Malorne"
+   {:name        "Malorne"
+    :attack      9
+    :health      7
+    :mana-cost   7
+    :type        :minion
+    :class       :druid
+    :set         :goblins-vs-gnomes
+    :rarity      :legendary
+    :description "Deathrattle: Shuffle this minion into your deck."}
+
+   ;; TODO
+   "Sneaky Devil"
+   {:name        "Sneaky Devil"
+    :attack      2
+    :health      2
+    :mana-cost   4
+    :type        :minion
+    :rarity      :common
+    :set         :kobolds-and-catacombs
+    :description "Stealth. Your other minions have +1 Attack."}
+
+   ;; TODO
+   "Spellbreaker"
+   {:name        "Spellbreaker"
+    :attack      4
+    :health      3
+    :mana-cost   4
+    :rarity      :common
+    :set         :classic
+    :type        :minion
+    :description "Battlecry: Silence a minion."}
+
+   ;; TODO
+   "Unearthed Raptor"
+   {:name        "Unearthed Raptor"
+    :attack      3
+    :health      4
+    :mana-cost   3
+    :type        :minion
+    :class       :rogue
+    :set         :the-league-of-explorers
+    :rarity      :rare
+    :description "Battlecry: Choose a friendly minion. Gain a copy of its Deathrattle effect."}
 
    })
 
