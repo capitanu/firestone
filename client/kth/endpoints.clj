@@ -10,14 +10,14 @@
   [data]
   {:body    (str data)
    :status  200
-   :headers {"Access-Control-Allow-Origin" "https://conjoin-it.se"}})
+   :headers {"Access-Control-Allow-Origin" "https://www.conjoin-it.se"}})
 
 
 (defn decorate-game-response
   [data]
   (if-not (check-spec ::client-spec/game-states data)
     {:status  500
-     :headers {"Access-Control-Allow-Origin" "https://conjoin-it.se"}
+     :headers {"Access-Control-Allow-Origin" "https://www.conjoin-it.se"}
      :body    (s/explain-str ::client-spec/game-states data)}
     (decorate-response data)))
 

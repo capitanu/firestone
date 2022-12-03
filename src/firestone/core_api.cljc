@@ -245,9 +245,9 @@
                     (play-card "p1" "a" :position 0 :target-id "p2")
                     (get-in [:players "p2" :hero :health]))
                 15)
-           (is= (as-> (create-game [{:hand [(create-card "Nightblade" :id "n")]}]) $
-                      (play-card $ "p1" "n" :position 0)
-                      (get-in $ [:players "p2" :hero :damage-taken]))
+           (is= (as-> (create-game [{:hand [(create-card "Nightblade" :id "n") (create-card "Nightblade" :id "n2")]}]) $
+                  (play-card $ "p1" "n" :position 0)
+                  (get-in $ [:players "p2" :hero :damage-taken]))
                 3)
            (error? (as-> (create-game [{:hand [(create-card "Nightblade" :id "n")]
                                         :mana 0}]) $
@@ -262,7 +262,8 @@
                 (remove-card-hand player-id card)
                 (place-card-board player-id card position)
                 (battlecry card :player-id player-id :target-id target-id)
-                (combo player-id card))
+                (combo card :player-id player-id)
+                (update :cards-played-this-turn (constantly (conj (or (get state :cards-played-this-turn) []) (:id card)))))
             (error "Not a valid minion to play"))
 
           (= (:type card) :spell)

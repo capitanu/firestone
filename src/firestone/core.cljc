@@ -109,18 +109,6 @@
   ([state id]
    (get-health (get-character state id))))
 
-(defn get-attack
-  "Returns the attack of the minion with the given id."
-  {:test (fn []
-           (is= (-> (create-game [{:minions [(create-minion "Nightblade" :id "n")]}])
-                    (get-attack "n"))
-                4))}
-  [state id]
-  (let [minion (get-minion state id)
-        definition (get-definition minion)]
-    (:attack definition)))
-
-
 
 
 (defn sleepy?
@@ -625,7 +613,8 @@
                 []))}
   [state]
   {:pre [(map? state)]}
-  (update state :minion-ids-summoned-this-turn (constantly [])))
+  (-> (update state :minion-ids-summoned-this-turn (constantly []))
+      (update :cards-played-this-turn (constantly []))))
 
 
 (defn valid-play-spell?
@@ -694,33 +683,6 @@
         :else
         (error "Not a valid spell")))
 
-(defn draw-first-minion
-  "Draws the first minion in the deck"
-  {:test (fn []
-           (is= (-> (create-game [{:deck [(create-card "Battle Rage") (create-card "Boulderfist Ogre") (create-card "Battle Rage")]}])
-                    (draw-first-minion "p1")
-                    (get-in [:players "p1" :hand])
-                    (first)
-                    (:name))
-                "Boulderfist Ogre")
-           (is= (-> (create-game [{:deck [(create-card "Battle Rage") (create-card "Battle Rage")]}])
-                    (draw-first-minion "p1")
-                    (get-in [:players "p1" :hand])
-                    (first))
-                nil))}
-  [state player-id]
-  (let [first-minion (as-> (get-deck state player-id) $
-                  (filter (fn [x] (= (:type x) :minion)) $)
-                  (first $))]
-    (if first-minion
-      (if (< (-> (count (get-in state [:players player-id :hand])))
-             10)
-        (as-> (filter (fn [x] (not= (:id x) (:id first-minion))) (get-deck state player-id)) $
-          (update-in state [:players player-id :deck] (constantly $))
-          (update-in $ [:players player-id :hand] conj first-minion))
-        (as-> (filter (fn [x] (not= (:id x) (:id first-minion))) (get-deck state player-id)) $
-          (update-in state [:players player-id :deck] (constantly $))))
-      state)))
 
 
 (defn combo
@@ -729,7 +691,7 @@
            (is= (as-> (create-game []) $
                     (place-card-board $ "p1" (create-card "Boulderfist Ogre") 0)
                     (place-card-board $ "p1" (create-card "Shado-Pan Rider") 0)
-                    (combo $ "p1" (create-card "Shado-Pan Rider"))
+                    (combo $ (create-card "Shado-Pan Rider") :player-id "p1")
                     (let [state $]
                       (-> (get-minion state (:id (get-latest-minion state)))
                           (:attack))))
@@ -737,7 +699,7 @@
            (is= (-> (create-game [{:deck [(create-card "Boulderfist Ogre")]}])
                     (place-card-board "p1" (create-card "Boulderfist Ogre") 0)
                     (place-card-board "p1" (create-card "Shado-Pan Rider") 0)
-                    (combo "p1" (create-card "Elven Minstrel"))
+                    (combo (create-card "Elven Minstrel") :player-id "p1")
                     (get-in [:players "p1" :hand])
                     (first)
                     (:name))
@@ -745,24 +707,16 @@
            (is= (as-> (create-game [{:deck [(create-card "Boulderfist Ogre") (create-card "Alexstrasza")]}]) $
                   (place-card-board $ "p1" (create-card "Boulderfist Ogre") 0)
                   (place-card-board $ "p1" (create-card "Shado-Pan Rider") 0)
-                  (combo $ "p1" (create-card "Elven Minstrel"))
+                  (combo $ (create-card "Elven Minstrel") :player-id "p1")
                   (get-in $ [:players "p1" :hand])
                   (map :name $))
                 ["Boulderfist Ogre" "Alexstrasza"])
            )}
-  [state player-id card]
+  [state card & {player-id :player-id}]
   {:pre [(map? state) (string? player-id) (map? card)]}
-  (if (>= 1 (count (get state :minion-ids-summoned-this-turn)))
-    state
-    (cond (= (:name card) "Elven Minstrel")
-          (-> (draw-first-minion state player-id)
-              (draw-first-minion player-id))
-
-          (= (:name card) "Shado-Pan Rider")
-          (update-minion state (:id (get-latest-minion state)) :attack (+ 3 (get-attack state (:id (get-latest-minion state)))))
-          
-          :else
-          state)))
+  (if (:combo (get-definition (:name card)))
+    ((:combo (get-definition (:name card))) state :player-id player-id)
+    state))
 
 (defn use-hero-power
   "Uses the hero power of the current"

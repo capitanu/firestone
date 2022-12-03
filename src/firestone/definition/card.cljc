@@ -4,8 +4,10 @@
                                          get-deck
                                          add-card-to-deck
                                          add-minion-to-board
+                                         draw-first-minion
                                          draw-card
                                          create-card
+                                         get-attack
                                          create-minion
                                          get-fatigue
                                          get-latest-minion
@@ -118,7 +120,10 @@
     :class       :rogue
     :rarity      :rare
     :set         :kobolds-and-catacombs
-    :description "Combo: Draw 2 minions from your deck."}
+    :description "Combo: Draw 2 minions from your deck."
+    :combo       (fn [state & {player-id :player-id}]
+                   (-> (draw-first-minion state player-id)
+                       (draw-first-minion player-id)))}
 
    ;; Implemented
    "Shado-Pan Rider"
@@ -130,7 +135,9 @@
     :class       :rogue
     :set         :the-grand-tournament
     :rarity      :common
-    :description "Combo: Gain +3 Attack."}
+    :description "Combo: Gain +3 Attack."
+    :combo       (fn [state & {}]
+                   (update-minion state (:id (get-latest-minion state)) :attack (+ 3 (get-attack state (:id (get-latest-minion state))))))}
 
    ;; Implemented
    "Alexstrasza"

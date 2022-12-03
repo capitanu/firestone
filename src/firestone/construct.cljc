@@ -960,10 +960,10 @@
   "Returns the number of damaged minions for a player"
   {:test (fn []
            (is= (-> (create-game [{:minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre" :damage-taken 3) (create-minion "Boulderfist Ogre" :damage-taken 2)]}])
-                    (count-damaged-minions "p1"))
+                    (count-damaged-characters "p1"))
                 2)
            (is= (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :damage-taken 3) :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre" :damage-taken 3) (create-minion "Boulderfist Ogre" :damage-taken 2)]}])
-                    (count-damaged-minions "p1"))
+                    (count-damaged-characters "p1"))
                 3))}
   [state player-id]
   (->> (get-in state [:players "p1" :minions])
@@ -1044,3 +1044,44 @@
           (update-in [:players player-id :hand] conj card)))
     (let [card (peek (get-in state [:players player-id :deck]))]
       (update-in state [:players player-id :deck] pop))))
+
+(defn draw-first-minion
+  "Draws the first minion in the deck"
+  {:test (fn []
+           (is= (-> (create-game [{:deck [(create-card "Battle Rage") (create-card "Boulderfist Ogre") (create-card "Battle Rage")]}])
+                    (draw-first-minion "p1")
+                    (get-in [:players "p1" :hand])
+                    (first)
+                    (:name))
+                "Boulderfist Ogre")
+           (is= (-> (create-game [{:deck [(create-card "Battle Rage") (create-card "Battle Rage")]}])
+                    (draw-first-minion "p1")
+                    (get-in [:players "p1" :hand])
+                    (first))
+                nil))}
+  [state player-id]
+  (let [first-minion (as-> (get-deck state player-id) $
+                  (filter (fn [x] (= (:type x) :minion)) $)
+                  (first $))]
+    (if first-minion
+      (if (< (-> (count (get-in state [:players player-id :hand])))
+             10)
+        (as-> (filter (fn [x] (not= (:id x) (:id first-minion))) (get-deck state player-id)) $
+          (update-in state [:players player-id :deck] (constantly $))
+          (update-in $ [:players player-id :hand] conj first-minion))
+        (as-> (filter (fn [x] (not= (:id x) (:id first-minion))) (get-deck state player-id)) $
+          (update-in state [:players player-id :deck] (constantly $))))
+      state)))
+
+(defn get-attack
+  "Returns the attack of the minion with the given id."
+  {:test (fn []
+           (is= (-> (create-game [{:minions [(create-minion "Nightblade" :id "n")]}])
+                    (get-attack "n"))
+                4))}
+  [state id]
+  (let [minion (get-minion state id)
+        definition (get-definition minion)]
+    (:attack definition)))
+
+
