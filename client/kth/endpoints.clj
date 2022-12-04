@@ -34,7 +34,7 @@
                            (-> (:body request)
                                (slurp)
                                (read-string)))]
-              (println params)
+              (println "These are the params: " params)
               (if (= uri "/engine-settings")
                 (-> (edn-api/engine-settings!)
                     (decorate-response))
@@ -43,6 +43,9 @@
 
                           (= uri "/end-turn")
                           (edn-api/end-turn! (:player-id params))
+
+                          (= uri "/play-minion-card")
+                          (edn-api/play-minion-card! (:player-id params) (:card-id params) (:position params) (:target-id params))
 
                           :else
                           (str "Missing path: " uri))

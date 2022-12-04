@@ -25,11 +25,11 @@
    :entity-type      :hero
    :attack           0
    :can-attack       false
-   :health           30
+   :health           (- (:health hero) (:damage-taken hero))
    :id               (:id hero)
-   :mana             5
+   :mana             (get-in state [:players player-id :mana])
    :max-health       30
-   :max-mana         8
+   :max-mana         (get-in state [:players player-id :max-mana])
    :name             (:name hero)
    :states           []
    :valid-attack-ids []})
@@ -41,7 +41,7 @@
                      (check-spec ::client-spec/player $))))}
   [state player-id]
   (let [player (get-player state player-id)]
-    {:board-entities []
+    {:board-entities (get-in state [:players player-id :minions])
      :active-secrets []
      :deck-size      (count (get-deck state player-id))
      :hand           (->> (get-hand state player-id))

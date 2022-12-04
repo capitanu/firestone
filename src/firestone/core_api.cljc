@@ -33,6 +33,7 @@
                                     get-health
                                     get-attack
                                     get-entity-type
+                                    get-valid-attacks
                                     pay-mana
                                     place-card-board
                                     play-spell
@@ -47,6 +48,8 @@
                                     trigger-end-turn-effects
                                     use-hero-power
                                     unstealth-minion
+                                    update-playable-cards
+                                    update-combo-cards
                                     valid-attack?
                                     valid-hero-power-use?
                                     valid-play-minion?
@@ -97,16 +100,18 @@
   (let [player-change-fn {"p1" "p2"
                           "p2" "p1"}]
     (as-> state $
-          (reset-mana $ (player-change-fn player-id))
-          (remove-sleeping-minions $)
-          (trigger-end-turn-effects $ player-id)
-          (update $ :player-id-in-turn player-change-fn)
-          (reset-minions-attack $ (player-change-fn player-id))
-          (reset-hero-power $ (player-change-fn player-id))
-          (let [s $ pl-id (player-change-fn player-id)]
-            (if (take-fatigue? s pl-id)
-              (get-fatigue s pl-id)
-              (draw-card s pl-id))))))
+      (trigger-end-turn-effects $ player-id)
+      (reset-mana $ (player-change-fn player-id))
+      (remove-sleeping-minions $)
+      (update $ :player-id-in-turn player-change-fn)
+      (get-valid-attacks $)
+      (reset-minions-attack $ (player-change-fn player-id))
+      (reset-hero-power $ (player-change-fn player-id))
+      (let [s $ pl-id (player-change-fn player-id)]
+        (if (take-fatigue? s pl-id)
+          (get-fatigue s pl-id)
+          (draw-card s pl-id)))
+      (update-playable-cards $ (player-change-fn player-id)))))
 
 (defn attack
   {:test (fn []
@@ -263,6 +268,8 @@
                 (place-card-board player-id card position)
                 (battlecry card :player-id player-id :target-id target-id)
                 (combo card :player-id player-id)
+                (update-playable-cards player-id)
+                (update-combo-cards player-id true)
                 (update :cards-played-this-turn (constantly (conj (or (get state :cards-played-this-turn) []) (:id card)))))
             (error "Not a valid minion to play"))
 
@@ -306,3 +313,16 @@
         (set-hero-power player-id))
     (-> (error "Can not play hero power")
         state)))
+
+
+(defn create-game!
+  []
+  (-> (create-game [{:hero (create-hero "Jaina Proudmoore" :damage-taken 10)
+                 :deck [(create-card "Nightblade")
+                        (create-card "Moroes")]
+                     :hand [(create-card "Unlicensed Apothecary")
+                            (create-card "Boulderfist Ogre")
+                            (create-card "Barnes")]}
+                    {:hero "Rexxar"
+                     :minions [(create-minion "Boulderfist Ogre")]}])
+      (update-playable-cards "p1")))

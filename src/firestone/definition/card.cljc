@@ -11,6 +11,7 @@
                                          create-minion
                                          get-fatigue
                                          get-latest-minion
+                                         get-minions
                                          add-minion-to-board
                                          take-fatigue?
                                          update-minion]]
@@ -58,7 +59,8 @@
     :description "Battlecry: Deal 4 damage to HIMSELF."
     :battlecry   (fn [state & {}]
                    (let [minion-id (:id (get-latest-minion state))]
-                     (update-minion state minion-id :damage-taken 4)))}
+                     (-> (update-minion state minion-id :damage-taken 4)
+                         (update-minion minion-id :health 3))))}
 
    ;; Implemented
    "Nightblade"
@@ -107,6 +109,7 @@
     :set         :classic
     :rarity      :legendary
     :description "Deathrattle: Summon a 4/5 Baine Bloodhoof."
+    ;; Check with view
     :deathrattle (fn [state & {player-id :player-id}]
                    (add-minion-to-board state player-id (create-card "Baine Bloodhoof") 7))}
 
@@ -150,6 +153,7 @@
     :set          :classic
     :race         :dragon
     :description  "Battlecry: Set a hero's remaining Health to 15."
+    ; Fix this with the view
     :battlecry    (fn [state & {player-id :player-id target-id :target-id}]
                     (-> (update-in state [:players target-id :hero :damage-taken] (constantly 0))
                         (update-in [:players target-id :hero :health] (constantly 15))))}
@@ -164,6 +168,7 @@
     :rarity       :epic
     :type         :minion
     :description  "Battlecry: Choose a minion and become a copy of it."
+    ; Fix this with the view
     :battlecry    (fn [state & {player-id :player-id target-id :target-id}]
                     (let [target-name (:name (get-minion state target-id))
                           minion-id (:id (get-latest-minion state))]
@@ -187,7 +192,7 @@
                            result (random-nth seed minions)
                            new-seed (first result)
                            minion (:name (second result))]
-                       (-> (add-minion-to-board state player-id (create-minion minion :attack 1 :health 1) 7)
+                       (-> (add-minion-to-board state player-id (create-minion minion :attack 1 :health 1 :original-health 1 :max-health 1 :original-attack 1) (+ 1 (reduce (fn [max curr] (if (< max (:position curr)) (:position curr) max)) 0 (get-minions state (get state :player-id-in-turn)))))
                            (update :seed (constantly new-seed))))))}
 
    ;; Implemented
@@ -201,6 +206,7 @@
     :rarity      :epic
     :set         :kobolds-and-catacombs
     :description "Deathrattle: Shuffle a copy of this minion into your deck."
+    ; Check with view
     :deathrattle (fn [state & {player-id :player-id}]
                    (if (zero? (count (get-deck state player-id)))
                      (add-card-to-deck state player-id (create-card "Astral Tiger"))
@@ -221,6 +227,7 @@
     :set         :classic
     :rarity      :common
     :description "Deathrattle: Draw a card."
+    ; Check with view
     :deathrattle (fn [state & {player-id :player-id}]
                    (if (take-fatigue? state player-id)
                      (get-fatigue state player-id)
@@ -246,6 +253,7 @@
     :set         :classic
     :rarity      :rare
     :end-effect  :true
+    ; Needs fix with view
     :description "At the end of your turn give another random friendly minion +1 Health."}
 
    ;; Implemented
@@ -282,6 +290,7 @@
     :class              :warlock
     :set                :mean-streets-of-gadgetzan
     :reaction-effect    :true
+    ; Fix for minions that spawn more minions
     :description        "Whenever you summon a minion deal 5 damage to your Hero."}
 
    ;; Implemented
@@ -292,6 +301,7 @@
     :class        :priest
     :set          :knights-of-the-frozen-throne
     :rarity       :rare
+    ; Fix with view
     :description  "Copy 3 cards in your opponent's deck and add them to your hand."}
 
 

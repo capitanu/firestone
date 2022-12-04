@@ -39,6 +39,7 @@
                                          get-random-minion-excluding-caller
                                          take-fatigue?
                                          increase-health
+                                         update-card
                                          update-minion
                                          update-hero
                                          update-player-mana]]))
@@ -358,36 +359,36 @@
                       (count)))
                 2)
            (is= (let [card (create-card "Moroes" :id "m")]
-             (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
-                   (place-card-board $ "p1" card 0)
-                   (get-in $ [:players "p1" :end-effect-minions])))
+                  (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
+                    (place-card-board $ "p1" card 0)
+                    (get-in $ [:players "p1" :end-effect-minions])))
                 ["m5"])
            (is= (let [card (create-card "Unlicensed Apothecary" :id "ua")]
                   (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
-                        (place-card-board $ "p1" card 0)
-                        (get-in $ [:players "p1" :reaction-effect-minions])))
+                    (place-card-board $ "p1" card 0)
+                    (get-in $ [:players "p1" :reaction-effect-minions])))
                 ["m5"])
            (is= (let [card (create-card "Unlicensed Apothecary" :id "ua")]
                   (let [card2 (create-card "Boulderfist Ogre" :id "bo")]
                     (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
-                          (place-card-board $ "p1" card 0)
-                          (place-card-board $ "p1" card2 1)
-                          (get-health $ "h1"))))
+                      (place-card-board $ "p1" card 0)
+                      (place-card-board $ "p1" card2 1)
+                      (get-health $ "h1"))))
                 25)
            (is= (let [card (create-card "Unlicensed Apothecary")]
-                   (let [card2 (create-card "Unlicensed Apothecary")]
-                     (let [card3 (create-card "Boulderfist Ogre" :id "bo")]
-                       (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
-                             (place-card-board $ "p1" card 0)
-                             (place-card-board $ "p1" card2 1)
-                             (place-card-board $ "p1" card3 2)
-                             (get-health $ "h1")))))
+                  (let [card2 (create-card "Unlicensed Apothecary")]
+                    (let [card3 (create-card "Boulderfist Ogre" :id "bo")]
+                      (as-> (create-game [{:hand [card] :minions [(create-minion "Boulderfist Ogre") (create-minion "Boulderfist Ogre")]}]) $
+                        (place-card-board $ "p1" card 0)
+                        (place-card-board $ "p1" card2 1)
+                        (place-card-board $ "p1" card3 2)
+                        (get-health $ "h1")))))
                 15))}
   [state player-id card position]
   {:pre [(map? state) (string? player-id) (map? card) (int? position)]}
   (let [minion (card->minion card)]
     (as-> (add-minion-to-board state player-id minion position) $
-          (trigger-reaction-effects $ player-id)
+      (trigger-reaction-effects $ player-id)
       (let [state-temp $]
         (let [minions (get-in $ [:players player-id :minions])]
           (let [minion-id (-> (filter
@@ -397,14 +398,14 @@
                               (first)
                               (:id))]
             (as-> (update-in state-temp [:minion-ids-summoned-this-turn] (constantly (conj (get state-temp :minion-ids-summoned-this-turn) minion-id))) x
-                  (let [st x]
-                    (as-> (if (:end-effect minion)
-                      (update-in st [:players player-id :end-effect-minions] (constantly (conj (get-in st [:players player-id :end-effect-minions]) minion-id)))
-                      st) y
-                    (if (:reaction-effect minion)
-                      (update-in y [:players player-id :reaction-effect-minions] (constantly (conj (get-in y [:players player-id :reaction-effect-minions]) minion-id)))
-                      y)
-                    )))))))))
+              (let [st x]
+                (as-> (if (:end-effect minion)
+                        (update-in st [:players player-id :end-effect-minions] (constantly (conj (get-in st [:players player-id :end-effect-minions]) minion-id)))
+                        st) y
+                  (if (:reaction-effect minion)
+                    (update-in y [:players player-id :reaction-effect-minions] (constantly (conj (get-in y [:players player-id :reaction-effect-minions]) minion-id)))
+                    y)
+                  )))))))))
 
 (defn battlecry
   "Makes the battle-cry happen"
@@ -599,10 +600,10 @@
         minion-name (:name (get-minion state minion-id))]
     (as-> (into [] (filter (fn [x] (not= (:id x) minion-id)) (get-in state [:players player-id :minions]))) $
       (update-in state [:players player-id :minions] (constantly $))
-        (let [st $]
-          (as-> (update-in st [:players player-id :end-effect-minions] (constantly (filter (fn [x] (not= minion-id x)) (get-in st [:players player-id :end-effect-minions])))) y
-            (update-in y [:players player-id :reaction-effect-minions] (constantly (filter (fn [x] (not= minion-id x)) (get-in y [:players player-id :reaction-effect-minions]))))
-            (deathrattle y minion-name :player-id player-id))))))
+      (let [st $]
+        (as-> (update-in st [:players player-id :end-effect-minions] (constantly (filter (fn [x] (not= minion-id x)) (get-in st [:players player-id :end-effect-minions])))) y
+          (update-in y [:players player-id :reaction-effect-minions] (constantly (filter (fn [x] (not= minion-id x)) (get-in y [:players player-id :reaction-effect-minions]))))
+          (deathrattle y minion-name :player-id player-id))))))
 
 (defn remove-sleeping-minions
   {:test (fn [] 
@@ -613,8 +614,19 @@
                 []))}
   [state]
   {:pre [(map? state)]}
-  (-> (update state :minion-ids-summoned-this-turn (constantly []))
-      (update :cards-played-this-turn (constantly []))))
+  (let [player-change-fn {"p1" "p2"
+                          "p2" "p1"}]
+    (as-> (update state :minion-ids-summoned-this-turn (constantly [])) $
+      (update $ :cards-played-this-turn (constantly []))
+      (reduce (fn [state minion]
+                (update-minion state (:id minion) :sleepy false))
+              $ (get-in state [:players (get state :player-id-in-turn) :minions]))
+      (reduce (fn [state minion]
+                (update-minion state (:id minion) :can-attack false))
+              $ (get-in state [:players (get state :player-id-in-turn) :minions]))
+      (reduce (fn [state minion]
+                (update-minion state (:id minion) :can-attack true))
+              $ (get-in state [:players (player-change-fn (get state :player-id-in-turn)) :minions])))))
 
 
 (defn valid-play-spell?
@@ -689,12 +701,12 @@
   "Triggers the combo"
   {:test (fn []
            (is= (as-> (create-game []) $
-                    (place-card-board $ "p1" (create-card "Boulderfist Ogre") 0)
-                    (place-card-board $ "p1" (create-card "Shado-Pan Rider") 0)
-                    (combo $ (create-card "Shado-Pan Rider") :player-id "p1")
-                    (let [state $]
-                      (-> (get-minion state (:id (get-latest-minion state)))
-                          (:attack))))
+                  (place-card-board $ "p1" (create-card "Boulderfist Ogre") 0)
+                  (place-card-board $ "p1" (create-card "Shado-Pan Rider") 0)
+                  (combo $ (create-card "Shado-Pan Rider") :player-id "p1")
+                  (let [state $]
+                    (-> (get-minion state (:id (get-latest-minion state)))
+                        (:attack))))
                 6)
            (is= (-> (create-game [{:deck [(create-card "Boulderfist Ogre")]}])
                     (place-card-board "p1" (create-card "Boulderfist Ogre") 0)
@@ -714,7 +726,7 @@
            )}
   [state card & {player-id :player-id}]
   {:pre [(map? state) (string? player-id) (map? card)]}
-  (if (:combo (get-definition (:name card)))
+  (if (and (not= 0 (count (get state :minion-ids-summoned-this-turn))) (:combo (get-definition (:name card))))
     ((:combo (get-definition (:name card))) state :player-id player-id)
     state))
 
@@ -771,15 +783,16 @@
   [state minion-id]
   (cond (= (:name (get-minion state minion-id))
            "Moroes")
-        (if (> 7 (count (get-in state [:player (get-player-id-in-turn state) :minions])))
-          (add-minion-to-board state (get-player-id-in-turn state) (create-minion "Steward") 7)
+        (if (< (count (get-in state [:players (get-player-id-in-turn state) :minions])) 7)
+          (add-minion-to-board state (get-player-id-in-turn state) (create-minion "Steward") (+ 1 (reduce (fn [max curr] (if (< max (:position curr)) (:position curr) max)) 0 (get-minions state (get-player-id-in-turn state)))))
           state)
         
         (= (:name (get-minion state minion-id))
            "Young Priestess")
-        (end-of-turn-yp state (get-in state [:players (get-player-id-in-turn state) :id] )minion-id)
+        (end-of-turn-yp state (get-in state [:players (get-player-id-in-turn state) :id]) minion-id)
         :else
         state))
+
 
 (defn trigger-end-turn-effects
   "Triggers each end of turn effect one by one"
@@ -797,3 +810,32 @@
             state
             minions)))
 
+(defn update-playable-cards
+  [state player-id]
+  (->> (get-in state [:players player-id :hand])
+       (reduce (fn [state card]
+                 (if (<= (:mana-cost card) (get-in state [:players player-id :mana]))
+                   (update-card state (:id card) :playable true)
+                   (update-card state (:id card) :playable false))) state)))
+
+(defn update-combo-cards
+  [state player-id tf]
+  (->> (get-in state [:players player-id :hand])
+       (reduce (fn [state card]
+                 (if (:combo (get-definition (:name card)))
+                   (update-card state (:id card) :special-effect-active tf)
+                   state)) state)))
+
+
+(defn get-valid-attacks
+  [state]
+  (let [player-id-in-turn (get state :player-id-in-turn)
+        player-change-fn {"p1" "p2"
+                          "p2" "p1"}
+        opponent-id (player-change-fn player-id-in-turn)
+        minions (get-minions state opponent-id)
+        hero-id (get-in state [:players opponent-id :hero :id])]
+      (reduce (fn [state minion]
+            (update-minion state (:id minion) :valid-attack-ids (conj (map :id (filter (fn [minion-en] (not (:stealth minion-en))) minions)) hero-id)))
+          state
+          (get-minions state player-id-in-turn))))

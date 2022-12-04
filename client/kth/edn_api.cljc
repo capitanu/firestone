@@ -18,13 +18,21 @@
 (defn create-game!
   []
   (println "Creating the game")
-  (let [state (reset! game-atom (construct/create-game))]
+  (let [state (reset! game-atom (core-api/create-game!))]
     [(create-client-state state)]))
 
 (defn end-turn!
   [player-id]
   (println "ending the turn")
   (let [state (swap! game-atom core-api/end-turn player-id)]
+    (clojure.pprint/pprint state)
     [(create-client-state state)]))
+
+(defn play-minion-card!
+  [player-id card-id position target-id]
+  (println "playing card")
+  (let [state (swap! game-atom core-api/play-card player-id card-id :position position :target-id target-id)]
+    [(create-client-state state)]))
+
 
 
